@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/auth";
+import { USE_MOCK_SERVICES } from "../services/config";
 import { Shield, Sparkles, LogIn, UserPlus } from "lucide-react";
 
 export const Login: React.FC = () => {
@@ -57,6 +58,41 @@ export const Login: React.FC = () => {
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
         <div className="government-banner"></div>
         <div className="p-6 md:p-8">
+          {/* Database Mode Selector Toggle */}
+          <div className="mb-6 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-4">
+            <span className="text-xs font-bold text-slate-700">Database Engine:</span>
+            <div className="flex gap-1 bg-slate-200 p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem("nagrik_use_mock", "true");
+                  window.location.reload();
+                }}
+                className={`text-[10px] font-bold px-2 py-1 rounded transition-all ${
+                  USE_MOCK_SERVICES
+                    ? "bg-white text-slate-800 shadow-sm font-extrabold"
+                    : "text-slate-500 hover:text-slate-750"
+                }`}
+              >
+                Local Mock
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem("nagrik_use_mock", "false");
+                  window.location.reload();
+                }}
+                className={`text-[10px] font-bold px-2 py-1 rounded transition-all ${
+                  !USE_MOCK_SERVICES
+                    ? "bg-white text-slate-800 shadow-sm font-extrabold"
+                    : "text-slate-500 hover:text-slate-750"
+                }`}
+              >
+                MongoDB Server
+              </button>
+            </div>
+          </div>
+
           <div className="flex gap-4 border-b border-slate-100 pb-4 mb-6">
             <button
               onClick={() => {
