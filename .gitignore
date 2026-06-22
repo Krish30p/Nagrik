@@ -1,27 +1,14 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Diagnostic reports
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Dependency directories
+# Node dependency directories
 node_modules/
-jspm_packages/
-web_modules/
+**/node_modules/
 
-# TypeScript cache
+# Bundler/build outputs
+dist/
+dist-ssr/
+build/
+**/dist/
+**/build/
+backend/functions/lib/
 *.tsbuildinfo
 
 # Linter and test coverage caches
@@ -30,15 +17,6 @@ web_modules/
 coverage/
 *.lcov
 .nyc_output
-
-# Build and distribution directories (Vite)
-dist/
-dist-ssr/
-build/
-
-# Vite development cache
-.vite/
-.vitepress/dist
 
 # IDEs/Editors
 .vscode/*
@@ -76,6 +54,6 @@ auth-debug.log
 *.env
 *.env.local
 
-# Project documentation and guidelines
+# Project documentation and guidelines (Requested by user)
 docs/
 CLAUDE.md
