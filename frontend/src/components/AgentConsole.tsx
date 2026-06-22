@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { dbService, subscribeToCollection } from "../services/db";
+import { USE_MOCK_SERVICES, API_URL } from "../services/config";
+import { getAuthHeaders } from "../services/auth";
 import { escalationAgent } from "../services/agents/escalation";
 import { AgentLog } from "../types";
 import { Terminal, Shield, ArrowRight, RefreshCw, Trash2, Clock, Play, ChevronDown, ChevronUp } from "lucide-react";
@@ -20,8 +22,13 @@ export const AgentConsole: React.FC = () => {
     loadLogs();
     
     // Read current time offset to initialize display
-    const offset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
-    setSimulatedDays(Math.floor(offset / (24 * 3600 * 1000)));
+    if (USE_MOCK_SERVICES) {
+      const offset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
+      setSimulatedDays(Math.floor(offset / (24 * 3600 * 1000)));
+    } else {
+      // In server mode, stats updates will synchronize periodically, 
+      // but we can poll simulated clock state or calculate on reload.
+    }
 
     const unsubscribe = subscribeToCollection("agent_logs", loadLogs);
     return unsubscribe;
@@ -29,12 +36,21 @@ export const AgentConsole: React.FC = () => {
 
   const handleClearLogs = async () => {
     await dbService.clearAgentLogs();
+    await loadLogs();
   };
 
   const handleTriggerEscalation = async () => {
     setIsProcessing("escalation");
     try {
-      await escalationAgent.checkSLAAndEscalate();
+      if (USE_MOCK_SERVICES) {
+        await escalationAgent.checkSLAAndEscalate();
+      } else {
+        const res = await fetch(`${API_URL}/agents/escalate`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) throw new Error("Server SLA Sweep failed.");
+      }
       await loadLogs();
     } catch (e) {
       console.error(e);
@@ -44,32 +60,74 @@ export const AgentConsole: React.FC = () => {
   };
 
   const handleFastForward = async (days: number) => {
-    const currentOffset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
-    const addedOffset = days * 24 * 3600 * 1000;
-    const newOffset = currentOffset + addedOffset;
-    localStorage.setItem("nagrik_time_offset_ms", newOffset.toString());
-    setSimulatedDays(Math.floor(newOffset / (24 * 3600 * 1000)));
+    setIsProcessing("time");
+    try {
+      if (USE_MOCK_SERVICES) {
+        const currentOffset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
+        const addedOffset = days * 24 * 3600 * 1000;
+        const newOffset = currentOffset + addedOffset;
+        localStorage.setItem("nagrik_time_offset_ms", newOffset.toString());
+        setSimulatedDays(Math.floor(newOffset / (24 * 3600 * 1000)));
 
-    await dbService.createAgentLog(
-      "Escalation Agent",
-      "Time Travel Event",
-      `Fast-forwarded simulation clock by **${days} days**. Total offset: **${Math.floor(newOffset / (24 * 3600 * 1000))} days**. Checking SLA breaches...`,
-      "warning"
-    );
+        await dbService.createAgentLog(
+          "Escalation Agent",
+          "Time Travel Event",
+          `Fast-forwarded simulation clock by **${days} days**. Total offset: **${Math.floor(newOffset / (24 * 3600 * 1000))} days**. Checking SLA breaches...`,
+          "warning"
+        );
 
-    // Automatically trigger Escalation Agent check
-    await handleTriggerEscalation();
+        // Automatically trigger Escalation Agent check
+        await escalationAgent.checkSLAAndEscalate();
+      } else {
+        const res = await fetch(`${API_URL}/simulation/fast-forward`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ days })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setSimulatedDays(data.totalOffsetDays);
+        } else {
+          throw new Error("Server Time Travel failed.");
+        }
+      }
+      await loadLogs();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   const resetTime = async () => {
-    localStorage.setItem("nagrik_time_offset_ms", "0");
-    setSimulatedDays(0);
-    await dbService.createAgentLog(
-      "Escalation Agent",
-      "Time Reset",
-      `Reset simulation clock to normal system time.`,
-      "info"
-    );
+    setIsProcessing("time");
+    try {
+      if (USE_MOCK_SERVICES) {
+        localStorage.setItem("nagrik_time_offset_ms", "0");
+        setSimulatedDays(0);
+        await dbService.createAgentLog(
+          "Escalation Agent",
+          "Time Reset",
+          `Reset simulation clock to normal system time.`,
+          "info"
+        );
+      } else {
+        const res = await fetch(`${API_URL}/simulation/reset`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          setSimulatedDays(0);
+        } else {
+          throw new Error("Server Time Reset failed.");
+        }
+      }
+      await loadLogs();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   const toggleLog = (id: string) => {
@@ -124,19 +182,22 @@ export const AgentConsole: React.FC = () => {
               <div className="grid grid-cols-3 gap-1.5 mt-1">
                 <button
                   onClick={() => handleFastForward(1)}
-                  className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-700 text-slate-300 transition-colors"
+                  disabled={isProcessing !== null}
+                  className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-700 text-slate-300 transition-colors disabled:opacity-50"
                 >
                   +1 Day
                 </button>
                 <button
                   onClick={() => handleFastForward(3)}
-                  className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-700 text-slate-300 transition-colors"
+                  disabled={isProcessing !== null}
+                  className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-700 text-slate-300 transition-colors disabled:opacity-50"
                 >
                   +3 Days
                 </button>
                 <button
                   onClick={() => handleFastForward(7)}
-                  className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-700 text-slate-300 transition-colors"
+                  disabled={isProcessing !== null}
+                  className="bg-slate-800 hover:bg-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-700 text-slate-300 transition-colors disabled:opacity-50"
                 >
                   +7 Days
                 </button>
@@ -145,7 +206,8 @@ export const AgentConsole: React.FC = () => {
               {simulatedDays > 0 && (
                 <button
                   onClick={resetTime}
-                  className="text-[10px] text-red-400 hover:text-red-300 text-left font-medium mt-1 w-fit"
+                  disabled={isProcessing !== null}
+                  className="text-[10px] text-red-400 hover:text-red-300 text-left font-medium mt-1 w-fit disabled:opacity-50"
                 >
                   Reset simulation time
                 </button>
@@ -160,7 +222,7 @@ export const AgentConsole: React.FC = () => {
                 onClick={handleTriggerEscalation}
                 className="w-full bg-primary hover:bg-primary-hover text-white text-xs font-bold py-2 px-3 rounded flex items-center justify-center gap-1.5 transition-all shadow-md disabled:opacity-50"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${isProcessing ? "animate-spin" : ""}`} />
+                <RefreshCw className={`h-3.5 w-3.5 ${isProcessing === "escalation" ? "animate-spin" : ""}`} />
                 Run SLA Compliance Sweep
               </button>
 

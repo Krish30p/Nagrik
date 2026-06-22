@@ -1,71 +1,90 @@
-import { USE_MOCK_SERVICES } from "./config";
+import { USE_MOCK_SERVICES, API_URL } from "./config";
 import { User } from "../types";
-
-// Private mock session state
-let mockCurrentUser: User | null = (() => {
-  const saved = localStorage.getItem("nagrik_user");
-  return saved ? JSON.parse(saved) : null;
-})();
 
 type AuthStateListener = (user: User | null) => void;
 const listeners = new Set<AuthStateListener>();
 
+// Initial session state
+let currentUser: User | null = (() => {
+  const saved = localStorage.getItem("nagrik_user");
+  return saved ? JSON.parse(saved) : null;
+})();
+
 function notifyListeners() {
-  listeners.forEach(listener => listener(mockCurrentUser));
+  listeners.forEach(listener => listener(currentUser));
 }
 
-// Live Firebase Auth imports (resolved dynamically/safely)
-// We declare variables that can hold Firebase auth references
-let firebaseAuth: any = null;
-let firestoreDb: any = null;
-
-if (!USE_MOCK_SERVICES) {
-  // Real Firebase Auth setup will be initialized in a main entrypoint,
-  // but we can import standard Firebase client libraries safely.
+// Fetch helper with Auth headers
+export function getAuthHeaders() {
+  const token = localStorage.getItem("nagrik_jwt");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { "Authorization": `Bearer ${token}` } : {})
+  };
 }
 
 export const authService = {
-  // Listen to auth state changes
   onAuthStateChanged(callback: AuthStateListener) {
     listeners.add(callback);
-    callback(mockCurrentUser); // immediate initial call
+    callback(currentUser);
     return () => {
       listeners.delete(callback);
     };
   },
 
   getCurrentUser(): User | null {
-    return mockCurrentUser;
+    return currentUser;
   },
 
   async login(email: string, password: string): Promise<User> {
     if (USE_MOCK_SERVICES) {
-      // Simple mock login: verify email exists in mock db
       const mockUsers = JSON.parse(localStorage.getItem("nagrik_mock_users") || "[]");
       const found = mockUsers.find((u: any) => u.email === email);
       if (!found) {
         throw new Error("User not found in local simulation. Please register first!");
       }
-      
-      mockCurrentUser = {
+
+      currentUser = {
         id: found.id,
         name: found.name,
         email: found.email,
         photoURL: found.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${found.name}`,
         points: found.points || 150,
         level: found.level || 1,
-        reportsCount: found.reportsCount || found.reports?.length || 0,
+        reportsCount: found.reportsCount || 0,
         confirmationsCount: found.confirmationsCount || 0,
         createdAt: found.createdAt || new Date().toISOString(),
       };
-      
-      localStorage.setItem("nagrik_user", JSON.stringify(mockCurrentUser));
+
+      localStorage.setItem("nagrik_use_mock", "true");
+      localStorage.setItem("nagrik_user", JSON.stringify(currentUser));
       notifyListeners();
-      return mockCurrentUser;
+      return currentUser;
     } else {
-      // Live Firebase Login placeholder
-      // In a real app: signInWithEmailAndPassword, then fetch user doc from Firestore
-      throw new Error("Live Firebase login not fully connected. Check environment variables.");
+      // Connect to MongoDB REST API
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to sign in.");
+      }
+
+      localStorage.removeItem("nagrik_use_mock");
+      localStorage.setItem("nagrik_jwt", data.token);
+
+      // Translate _id to id for frontend type compatibility
+      currentUser = {
+        ...data.user,
+        id: data.user._id
+      };
+
+      localStorage.setItem("nagrik_user", JSON.stringify(currentUser));
+      notifyListeners();
+      return currentUser!;
     }
   },
 
@@ -81,7 +100,7 @@ export const authService = {
         name,
         email,
         photoURL: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
-        points: 100, // starting points
+        points: 100,
         level: 1,
         reportsCount: 0,
         confirmationsCount: 0,
@@ -90,28 +109,47 @@ export const authService = {
 
       mockUsers.push(newUser);
       localStorage.setItem("nagrik_mock_users", JSON.stringify(mockUsers));
+      localStorage.setItem("nagrik_use_mock", "true");
       
-      mockCurrentUser = newUser;
+      currentUser = newUser;
       localStorage.setItem("nagrik_user", JSON.stringify(newUser));
       notifyListeners();
       return newUser;
     } else {
-      // Live Firebase Registration
-      throw new Error("Live Firebase registration not fully connected. Check environment variables.");
+      // Connect to MongoDB REST API
+      const res = await fetch(`${API_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to create account.");
+      }
+
+      localStorage.removeItem("nagrik_use_mock");
+      localStorage.setItem("nagrik_jwt", data.token);
+
+      currentUser = {
+        ...data.user,
+        id: data.user._id
+      };
+
+      localStorage.setItem("nagrik_user", JSON.stringify(currentUser));
+      notifyListeners();
+      return currentUser!;
     }
   },
 
   async logout(): Promise<void> {
-    if (USE_MOCK_SERVICES) {
-      mockCurrentUser = null;
-      localStorage.removeItem("nagrik_user");
-      notifyListeners();
-    } else {
-      // Live Firebase SignOut
-    }
+    currentUser = null;
+    localStorage.removeItem("nagrik_user");
+    localStorage.removeItem("nagrik_jwt");
+    localStorage.removeItem("nagrik_use_mock");
+    notifyListeners();
   },
 
-  // Award points to user for civic action (reporting, confirming)
   async awardPoints(userId: string, pointsAmount: number, actionType: 'report' | 'confirm'): Promise<void> {
     if (USE_MOCK_SERVICES) {
       const mockUsers = JSON.parse(localStorage.getItem("nagrik_mock_users") || "[]");
@@ -124,20 +162,35 @@ export const authService = {
           mockUsers[userIndex].confirmationsCount = (mockUsers[userIndex].confirmationsCount || 0) + 1;
         }
         
-        // Calculate level based on points (100 points per level)
         mockUsers[userIndex].level = Math.floor(mockUsers[userIndex].points / 100) + 1;
         
         localStorage.setItem("nagrik_mock_users", JSON.stringify(mockUsers));
 
-        // If it's currently logged in user, update current session
-        if (mockCurrentUser && mockCurrentUser.id === userId) {
-          mockCurrentUser = mockUsers[userIndex];
-          localStorage.setItem("nagrik_user", JSON.stringify(mockCurrentUser));
+        if (currentUser && currentUser.id === userId) {
+          currentUser = mockUsers[userIndex];
+          localStorage.setItem("nagrik_user", JSON.stringify(currentUser));
           notifyListeners();
         }
       }
     } else {
-      // Live Firestore update
+      // In live MongoDB mode, database endpoints (like create issue or resolve issue) 
+      // automatically execute points accrual in the backend! We just fetch profile to sync.
+      try {
+        const res = await fetch(`${API_URL}/auth/profile`, {
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          const user = await res.json();
+          currentUser = {
+            ...user,
+            id: user._id
+          };
+          localStorage.setItem("nagrik_user", JSON.stringify(currentUser));
+          notifyListeners();
+        }
+      } catch (err) {
+        console.error("Points profile sync error:", err);
+      }
     }
   }
 };

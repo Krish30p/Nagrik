@@ -1,20 +1,11 @@
-// Detection for Firebase configuration
-export const FIREBASE_CONFIG = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
-};
-
-export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+export const GEMINI_API_KEY = ""; // Kept as stub for local mock agent type compatibility
 
-// Toggle live backend vs local simulation
-export const USE_MOCK_SERVICES =
-  !FIREBASE_CONFIG.apiKey ||
-  FIREBASE_CONFIG.apiKey === "YOUR_API_KEY" ||
-  import.meta.env.VITE_USE_MOCK === "true";
+// Set mock mode either via environment variables or a localStorage override
+export const USE_MOCK_SERVICES = 
+  import.meta.env.VITE_USE_MOCK === "true" || 
+  localStorage.getItem("nagrik_use_mock") === "true" ||
+  !localStorage.getItem("nagrik_jwt") && localStorage.getItem("nagrik_user") !== null;
 
-console.log(`[Nagrik Config] Running in ${USE_MOCK_SERVICES ? "LOCAL SIMULATION" : "LIVE BACKEND"} mode.`);
+console.log(`[Nagrik Config] Client mode: ${USE_MOCK_SERVICES ? "LOCAL BROWSER SIMULATION" : "MONGODB SERVER CONNECTED"}`);
