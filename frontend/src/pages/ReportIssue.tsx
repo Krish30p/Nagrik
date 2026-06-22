@@ -81,49 +81,83 @@ export const ReportIssue: React.FC = () => {
       return;
     }
 
+    const USE_MOCK = localStorage.getItem("nagrik_use_mock") !== "false";
+
     try {
-      // Step 1: Intake Agent
-      setAgentStep("intake");
-      setLoadingText("Intake Agent: Classifying category & estimating severity...");
-      const intakeRes = await intakeAgent.processReport(
-        description,
-        latitude,
-        longitude,
-        voiceText,
-        imageUrl || "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=800"
-      );
+      let issue;
 
-      // Save initial issue
-      setLoadingText("Intake Agent: Logging ticket in database...");
-      const issue = await dbService.createIssue({
-        title: intakeRes.title,
-        category: intakeRes.category,
-        description: description,
-        severity: intakeRes.severity,
-        status: "REPORTED",
-        location: intakeRes.landmarks || "Civic location",
-        latitude,
-        longitude,
-        ward,
-        createdBy: currentUser.id,
-        createdByName: currentUser.name,
-        mediaUrls: [imageUrl || "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=800"],
-        voiceTranscript: voiceText || undefined,
-        urgencyScore: 20,
-        slaDays: intakeRes.category === "Garbage" ? 3 : intakeRes.category === "Streetlight" ? 5 : intakeRes.category === "Pothole" ? 7 : intakeRes.category === "Water Leakage" ? 2 : 1
-      });
+      if (USE_MOCK) {
+        // ── MOCK MODE: Run frontend agents locally (localStorage simulation) ──
+        // Step 1: Intake Agent
+        setAgentStep("intake");
+        setLoadingText("Intake Agent: Classifying category & estimating severity...");
+        const intakeRes = await intakeAgent.processReport(
+          description,
+          latitude,
+          longitude,
+          voiceText,
+          imageUrl || "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=800"
+        );
 
-      // Step 2: Verification Agent
-      setAgentStep("verify");
-      setLoadingText("Verification Agent: Scanning 50m radius for overlapping active threads...");
-      const verifyRes = await verificationAgent.verifyIssue(issue.id);
+        // Save initial issue to localStorage
+        setLoadingText("Intake Agent: Logging ticket in database...");
+        issue = await dbService.createIssue({
+          title: intakeRes.title,
+          category: intakeRes.category,
+          description: description,
+          severity: intakeRes.severity,
+          status: "REPORTED",
+          location: intakeRes.landmarks || "Civic location",
+          latitude,
+          longitude,
+          ward,
+          createdBy: currentUser.id,
+          createdByName: currentUser.name,
+          mediaUrls: [imageUrl || "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=800"],
+          voiceTranscript: voiceText || undefined,
+          urgencyScore: 20,
+          slaDays: intakeRes.category === "Garbage" ? 3 : intakeRes.category === "Streetlight" ? 5 : intakeRes.category === "Pothole" ? 7 : intakeRes.category === "Water Leakage" ? 2 : 1
+        });
 
-      // Step 3: Routing Agent
-      setAgentStep("route");
-      setLoadingText("Routing Agent: Matching department & drafting formal dispatches...");
-      await routingAgent.routeIssue(issue.id);
+        // Step 2: Verification Agent
+        setAgentStep("verify");
+        setLoadingText("Verification Agent: Scanning 50m radius for overlapping active threads...");
+        await verificationAgent.verifyIssue(issue.id);
 
-      // Step 4: Award Points
+        // Step 3: Routing Agent
+        setAgentStep("route");
+        setLoadingText("Routing Agent: Matching department & drafting formal dispatches...");
+        await routingAgent.routeIssue(issue.id);
+      } else {
+        // ── SERVER MODE: Send to backend; all agents run there ──
+        setAgentStep("intake");
+        setLoadingText("AI Agents Processing on Server: Intake → Verification → Routing...");
+        issue = await dbService.createIssue({
+          title: "Pending AI Classification",
+          category: "Garbage", // placeholder; backend intake agent will classify via Gemini
+          description: description,
+          severity: "MEDIUM",
+          status: "REPORTED",
+          location: "Coordinates Location",
+          latitude,
+          longitude,
+          ward,
+          createdBy: currentUser.id,
+          createdByName: currentUser.name,
+          mediaUrls: imageUrl ? [imageUrl] : [],
+          voiceTranscript: voiceText || undefined,
+          urgencyScore: 20,
+          slaDays: 3
+        });
+        setAgentStep("verify");
+        setLoadingText("Verification Agent completed on server...");
+        await new Promise(r => setTimeout(r, 600)); // visual pause
+        setAgentStep("route");
+        setLoadingText("Routing Agent completed on server...");
+        await new Promise(r => setTimeout(r, 600)); // visual pause
+      }
+
+      // Award Points
       await authService.awardPoints(currentUser.id, 50, "report");
 
       setAgentStep("done");
@@ -249,7 +283,7 @@ export const ReportIssue: React.FC = () => {
               </div>
               {voiceText && (
                 <p className="text-[11px] text-slate-500 italic bg-slate-50 border border-slate-100 rounded-lg p-2.5 leading-relaxed">
-                  "{voiceText}"
+                  &ldquo;{voiceText}&rdquo;
                 </p>
               )}
             </div>

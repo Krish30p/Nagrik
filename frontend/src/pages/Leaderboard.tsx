@@ -1,20 +1,35 @@
 import React, { useEffect, useState } from "react";
-import { authService } from "../services/auth";
+import { authService, getAuthHeaders } from "../services/auth";
+import { API_URL } from "../services/config";
 import { User } from "../types";
-import { Award, Trophy, Users, ShieldAlert, Sparkles, Star } from "lucide-react";
+import { Trophy, Users, Sparkles, Star } from "lucide-react";
 
 export const Leaderboard: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const currentUser = authService.getCurrentUser();
 
   useEffect(() => {
-    // Fetch users from local storage
-    const loadUsers = () => {
-      const mockUsers = JSON.parse(localStorage.getItem("nagrik_mock_users") || "[]");
-      
-      // Sort users by points desc
-      const sorted = mockUsers.sort((a: User, b: User) => b.points - a.points);
-      setUsers(sorted);
+    const loadUsers = async () => {
+      const USE_MOCK = localStorage.getItem("nagrik_use_mock") !== "false";
+      if (USE_MOCK) {
+        const mockUsers = JSON.parse(localStorage.getItem("nagrik_mock_users") || "[]");
+        const sorted = mockUsers.sort((a: User, b: User) => b.points - a.points);
+        setUsers(sorted);
+      } else {
+        try {
+          const res = await fetch(`${API_URL}/dashboard/leaderboard`, {
+            headers: getAuthHeaders()
+          });
+          if (res.ok) {
+            const data = await res.json();
+            // Map _id to id for frontend type compatibility
+            const mapped = data.map((u: any) => ({ ...u, id: u._id || u.id }));
+            setUsers(mapped);
+          }
+        } catch (err) {
+          console.error("Failed to load leaderboard:", err);
+        }
+      }
     };
 
     loadUsers();
@@ -41,7 +56,11 @@ export const Leaderboard: React.FC = () => {
           <div className="text-left leading-tight">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Your Rank</p>
             <p className="text-base font-bold text-slate-200">
-              #{currentUser ? users.findIndex(u => u.id === currentUser.id) + 1 || "N/A" : "N/A"}
+              {currentUser
+                ? (users.findIndex(u => u.id === currentUser.id) >= 0
+                  ? `#${users.findIndex(u => u.id === currentUser.id) + 1}`
+                  : "N/A")
+                : "N/A"}
             </p>
           </div>
         </div>

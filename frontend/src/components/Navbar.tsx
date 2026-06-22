@@ -181,7 +181,7 @@ export const Navbar: React.FC = () => {
                 {/* User avatar and logout */}
                 <div className="flex items-center gap-3">
                   <img
-                    src={user.photoURL}
+                    src={user.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(user.name)}`}
                     alt={user.name}
                     className="h-9 w-9 rounded-full bg-slate-100 border border-slate-200"
                   />

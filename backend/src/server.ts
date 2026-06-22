@@ -14,7 +14,11 @@ const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/nagrik"; // Fallback to standard local MongoDB
 const JWT_SECRET = process.env.JWT_SECRET || "nagrik_developer_token_key";
 
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 
 // ==========================================
@@ -111,7 +115,7 @@ app.post("/api/auth/register", async (req: Request, res: Response) => {
 
     res.status(201).json({ token, user: userObject });
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -131,7 +135,7 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
 
     res.status(200).json({ token, user: userObject });
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -141,7 +145,7 @@ app.get("/api/auth/profile", authenticateToken, async (req: AuthRequest, res: Re
     if (!user) return res.status(404).json({ message: "Profile not found" });
     res.status(200).json(user);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -181,7 +185,7 @@ app.get("/api/issues", async (req: Request, res: Response) => {
     const issues = await Issue.find().sort({ createdAt: -1 });
     res.status(200).json(issues);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -191,9 +195,32 @@ app.get("/api/issues/:id", async (req: Request, res: Response) => {
     if (!issue) return res.status(404).json({ message: "Issue not found" });
     res.status(200).json(issue);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
+
+// ==========================================
+// 3. THREADS ROUTES (for frontend verification agent calls)
+// ==========================================
+app.get("/api/threads", async (req: Request, res: Response) => {
+  try {
+    const threads = await Thread.find().sort({ createdAt: -1 });
+    res.status(200).json(threads);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get("/api/threads/:id", async (req: Request, res: Response) => {
+  try {
+    const thread = await Thread.findById(req.params.id);
+    if (!thread) return res.status(404).json({ message: "Thread not found" });
+    res.status(200).json(thread);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 app.post("/api/issues/:id/resolve", authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -230,12 +257,12 @@ app.post("/api/issues/:id/resolve", authenticateToken, async (req: AuthRequest, 
 
     res.status(200).json(issue);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
 // ==========================================
-// 3. DASHBOARD / METRICS ROUTES
+// 4. DASHBOARD / METRICS ROUTES
 // ==========================================
 app.get("/api/dashboard/stats", async (req: Request, res: Response) => {
   try {
@@ -253,7 +280,7 @@ app.get("/api/dashboard/stats", async (req: Request, res: Response) => {
       issues
     });
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -262,7 +289,7 @@ app.get("/api/dashboard/leaderboard", async (req: Request, res: Response) => {
     const users = await User.find().select("-password").sort({ points: -1 });
     res.status(200).json(users);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -274,7 +301,7 @@ app.get("/api/agent-logs", async (req: Request, res: Response) => {
     const logs = await AgentLog.find().sort({ timestamp: -1 }).limit(100);
     res.status(200).json(logs);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -283,7 +310,7 @@ app.post("/api/agent-logs/clear", async (req: Request, res: Response) => {
     await AgentLog.deleteMany({});
     res.status(200).json({ message: "Logs cleared" });
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -292,7 +319,7 @@ app.post("/api/agents/escalate", async (req: Request, res: Response) => {
     const count = await escalationAgent.sweep();
     res.status(200).json({ escalatedCount: count });
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -323,7 +350,7 @@ app.post("/api/simulation/fast-forward", async (req: Request, res: Response) => 
 
     res.status(200).json({ success: true, totalOffsetDays: Math.floor(state.timeOffsetMs / (24 * 3600 * 1000)), escalated: count });
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -338,7 +365,7 @@ app.post("/api/simulation/reset", async (req: Request, res: Response) => {
     });
     res.status(200).json({ success: true });
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -350,7 +377,7 @@ app.get("/api/notifications", authenticateToken, async (req: AuthRequest, res: R
     const list = await Notification.find({ userId: req.userId }).sort({ createdAt: -1 });
     res.status(200).json(list);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -359,7 +386,7 @@ app.patch("/api/notifications/:id/read", authenticateToken, async (req: AuthRequ
     await Notification.findByIdAndUpdate(req.params.id, { read: true });
     res.status(200).json({ success: true });
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -371,7 +398,7 @@ app.get("/api/complaints", async (req: Request, res: Response) => {
     const list = await Complaint.find();
     res.status(200).json(list);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -380,7 +407,7 @@ app.get("/api/escalations", async (req: Request, res: Response) => {
     const list = await Escalation.find();
     res.status(200).json(list);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -389,7 +416,7 @@ app.get("/api/departments", async (req: Request, res: Response) => {
     const list = await Department.find();
     res.status(200).json(list);
   } catch (err: any) {
-    res.status(550).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 

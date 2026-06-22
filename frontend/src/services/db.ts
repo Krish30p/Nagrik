@@ -102,12 +102,25 @@ export const dbService = {
       triggerCollectionUpdate("issues");
       return newIssue;
     } else {
+      // In server mode, the backend runs all agents internally.
+      // The backend endpoint expects: { description, latitude, longitude, voiceTranscript, imageUrl, ward }
+      const payload: any = {
+        description: issue.description,
+        latitude: issue.latitude,
+        longitude: issue.longitude,
+        ward: issue.ward,
+        voiceTranscript: issue.voiceTranscript || undefined,
+        imageUrl: issue.mediaUrls && issue.mediaUrls.length > 0 ? issue.mediaUrls[0] : undefined
+      };
       const res = await fetch(`${API_URL}/issues/create`, {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify(issue)
+        body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error("Failed to create issue");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: "Failed to create issue" }));
+        throw new Error(errData.message || "Failed to create issue");
+      }
       const data = await res.json();
       triggerCollectionUpdate("issues");
       return mapDoc<Issue>(data);

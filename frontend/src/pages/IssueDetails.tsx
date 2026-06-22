@@ -52,37 +52,47 @@ export const IssueDetails: React.FC = () => {
   const handleResolveIssue = async () => {
     if (!issue) return;
 
+    const USE_MOCK = localStorage.getItem("nagrik_use_mock") !== "false";
+
     try {
-      // 1. Update status in db
+      // 1. Update status in db (server mode calls /api/issues/:id/resolve which handles everything)
       await dbService.updateIssue(issue.id, {
         status: "RESOLVED"
       });
 
-      // 2. Update thread status in db
-      if (issue.threadId) {
-        await dbService.updateThread(issue.threadId, {
-          status: "RESOLVED"
-        });
+      if (USE_MOCK) {
+        // In mock mode, handle thread/points/notifications/logs client-side
+
+        // 2. Update thread status in db
+        if (issue.threadId) {
+          await dbService.updateThread(issue.threadId, {
+            status: "RESOLVED"
+          });
+        }
+
+        // 3. Award Resolution Bonus to citizen (+100 points!)
+        await authService.awardPoints(issue.createdBy, 100, "report");
+
+        // 4. Create Notification
+        await dbService.createNotification(
+          issue.createdBy,
+          "Civic Issue Resolved!",
+          `Good news! The PWD/Sanitation department has resolved your ticket: "${issue.title}".`
+        );
+
+        // 5. Create Agent Telemetry Log
+        await dbService.createAgentLog(
+          "Verification Agent",
+          "Resolution Audited",
+          `Resolution audit completed for Ticket \`${issue.id}\`:\n- Confirmed repaired by ward field crew.\n- Closed ticket registry thread.\n- Payout of **100 points** processed to reporter (\`${issue.createdBy}\`).`,
+          "success",
+          issue.id
+        );
+      } else {
+        // In server mode: /api/issues/:id/resolve already handles thread, points, notifications & logs.
+        // Just sync the current user's profile for updated points.
+        await authService.awardPoints(issue.createdBy, 0, "report");
       }
-
-      // 3. Award Resolution Bonus to citizen (+100 points!)
-      await authService.awardPoints(issue.createdBy, 100, "report"); // additional resolution payout!
-
-      // 4. Create Notification
-      await dbService.createNotification(
-        issue.createdBy,
-        "Civic Issue Resolved!",
-        `Good news! The PWD/Sanitation department has resolved your ticket: "${issue.title}".`
-      );
-
-      // 5. Create Agent Telemetry Log
-      await dbService.createAgentLog(
-        "Verification Agent",
-        "Resolution Audited",
-        `Resolution audit completed for Ticket \`${issue.id}\`:\n- Confirmed repaired by ward field crew.\n- Closed ticket registry thread.\n- Payout of **100 points** processed to reporter (\`${issue.createdBy}\`).`,
-        "success",
-        issue.id
-      );
 
       await loadData();
     } catch (e) {
@@ -115,8 +125,11 @@ export const IssueDetails: React.FC = () => {
     RESOLVED: "bg-green-150 text-green-800 border-green-250",
   }[issue.status];
 
-  // Resolve eligibility: Admin, or mock admin user
-  const canResolve = currentUser && (currentUser.id === "usr_admin" || currentUser.id === issue.createdBy);
+  // Resolve eligibility: reporter of the issue, or admin email
+  const canResolve = currentUser && (
+    currentUser.id === issue.createdBy ||
+    currentUser.email === "admin@nagrik.gov.in"
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
