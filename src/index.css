@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@theme {
+  --color-primary: #0F766E;
+  --color-primary-hover: #0D5E58;
+  --color-primary-light: #F0FDFA;
+  --color-secondary: #14B8A6;
+  --color-secondary-hover: #0D9488;
+  --color-background-dark: #0F172A;
+  --color-danger: #DC2626;
+  --color-danger-light: #FEF2F2;
+  --color-success: #16A34A;
+  --color-success-light: #F0FDF4;
+  --color-warning: #D97706;
+  --color-warning-light: #FEF3C7;
+  --color-info: #2563EB;
+  --color-info-light: #EFF6FF;
+  
+  --font-sans: 'Inter', sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: #F8FAFC;
+  color: #0F172A;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Civic Theme Utilities */
+.government-banner {
+  border-top: 4px solid #0F766E;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-card-dark {
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+/* Custom scrollbars for clean layouts */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Map specific styles */
+.map-marker-pulse {
+  position: relative;
+}
+
+.map-marker-pulse::after {
+  content: '';
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  top: -8px;
+  left: -8px;
+  border-radius: 50%;
+  background: rgba(20, 184, 166, 0.3);
+  animation: pulse-slow 2s infinite;
+  pointer-events: none;
+}
