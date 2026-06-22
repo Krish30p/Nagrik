@@ -45,14 +45,14 @@ database-debug.log
 hosting-debug.log
 auth-debug.log
 
-# Environment variables and local secrets
+# Environment variables — NEVER commit .env (contains real secrets)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-*.env
-*.env.local
+# .env.example IS committed on purpose (safe template, no real secrets)
+!.env.example
 
 # Project documentation and guidelines (Requested by user)
 docs/

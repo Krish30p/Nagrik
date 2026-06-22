@@ -4,18 +4,25 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
 import { User, Issue, Thread, Department, Complaint, Escalation, Notification, AgentLog, SimulationState } from "./models";
 import { intakeAgent, verificationAgent, routingAgent, escalationAgent } from "./agents";
 
-dotenv.config();
+// Load the single root .env (Nagrik/.env) — two levels above backend/src/
+const envPath = path.resolve(__dirname, "../../.env");
+const result = dotenv.config({ path: envPath });
+if (result.error) {
+  console.warn(`[dotenv] Could not load .env from ${envPath}. Falling back to process environment.`);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/nagrik"; // Fallback to standard local MongoDB
-const JWT_SECRET = process.env.JWT_SECRET || "nagrik_developer_token_key";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/nagrik";
+const JWT_SECRET = process.env.JWT_SECRET || "nagrik_developer_token_key_change_me";
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
 
 app.use(cors({
-  origin: "*",
+  origin: CORS_ORIGIN.split(",").map(o => o.trim()),
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
