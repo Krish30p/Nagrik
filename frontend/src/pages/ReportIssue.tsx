@@ -2,9 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { dbService } from "../services/db";
 import { authService } from "../services/auth";
-import { intakeAgent } from "../services/agents/intake";
-import { verificationAgent } from "../services/agents/verification";
-import { routingAgent } from "../services/agents/routing";
 import { MapPin, Image as ImageIcon, Mic, Sparkles, Navigation, Send, CheckCircle2 } from "lucide-react";
 
 // Pre-set demo assets to let the user easily demo different agents
@@ -81,84 +78,35 @@ export const ReportIssue: React.FC = () => {
       return;
     }
 
-    const USE_MOCK = localStorage.getItem("nagrik_use_mock") !== "false";
-
     try {
-      let issue;
+      setAgentStep("intake");
+      setLoadingText("Intake Agent: Submitting report and running multimodal analysis...");
+      
+      const issue = await dbService.createIssue({
+        title: "Pending AI Classification",
+        category: "Garbage", // placeholder; backend will classify via Gemini
+        description: description,
+        severity: "MEDIUM",
+        status: "REPORTED",
+        location: "Coordinates Location",
+        latitude,
+        longitude,
+        ward,
+        createdBy: currentUser.id,
+        createdByName: currentUser.name,
+        mediaUrls: imageUrl ? [imageUrl] : [],
+        voiceTranscript: voiceText || undefined,
+        urgencyScore: 20,
+        slaDays: 3
+      });
 
-      if (USE_MOCK) {
-        // ── MOCK MODE: Run frontend agents locally (localStorage simulation) ──
-        // Step 1: Intake Agent
-        setAgentStep("intake");
-        setLoadingText("Intake Agent: Classifying category & estimating severity...");
-        const intakeRes = await intakeAgent.processReport(
-          description,
-          latitude,
-          longitude,
-          voiceText,
-          imageUrl || "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=800"
-        );
+      setAgentStep("verify");
+      setLoadingText("Verification Agent: Scanning for duplicate reports near coordinates...");
+      await new Promise(r => setTimeout(r, 800)); // visual pause for user to see the trace
 
-        // Save initial issue to localStorage
-        setLoadingText("Intake Agent: Logging ticket in database...");
-        issue = await dbService.createIssue({
-          title: intakeRes.title,
-          category: intakeRes.category,
-          description: description,
-          severity: intakeRes.severity,
-          status: "REPORTED",
-          location: intakeRes.landmarks || "Civic location",
-          latitude,
-          longitude,
-          ward,
-          createdBy: currentUser.id,
-          createdByName: currentUser.name,
-          mediaUrls: [imageUrl || "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=800"],
-          voiceTranscript: voiceText || undefined,
-          urgencyScore: 20,
-          slaDays: intakeRes.category === "Garbage" ? 3 : intakeRes.category === "Streetlight" ? 5 : intakeRes.category === "Pothole" ? 7 : intakeRes.category === "Water Leakage" ? 2 : 1
-        });
-
-        // Step 2: Verification Agent
-        setAgentStep("verify");
-        setLoadingText("Verification Agent: Scanning 50m radius for overlapping active threads...");
-        await verificationAgent.verifyIssue(issue.id);
-
-        // Step 3: Routing Agent
-        setAgentStep("route");
-        setLoadingText("Routing Agent: Matching department & drafting formal dispatches...");
-        await routingAgent.routeIssue(issue.id);
-      } else {
-        // ── SERVER MODE: Send to backend; all agents run there ──
-        setAgentStep("intake");
-        setLoadingText("AI Agents Processing on Server: Intake → Verification → Routing...");
-        issue = await dbService.createIssue({
-          title: "Pending AI Classification",
-          category: "Garbage", // placeholder; backend intake agent will classify via Gemini
-          description: description,
-          severity: "MEDIUM",
-          status: "REPORTED",
-          location: "Coordinates Location",
-          latitude,
-          longitude,
-          ward,
-          createdBy: currentUser.id,
-          createdByName: currentUser.name,
-          mediaUrls: imageUrl ? [imageUrl] : [],
-          voiceTranscript: voiceText || undefined,
-          urgencyScore: 20,
-          slaDays: 3
-        });
-        setAgentStep("verify");
-        setLoadingText("Verification Agent completed on server...");
-        await new Promise(r => setTimeout(r, 600)); // visual pause
-        setAgentStep("route");
-        setLoadingText("Routing Agent completed on server...");
-        await new Promise(r => setTimeout(r, 600)); // visual pause
-      }
-
-      // Award Points
-      await authService.awardPoints(currentUser.id, 50, "report");
+      setAgentStep("route");
+      setLoadingText("Routing Agent: Matching department and drafting complaint document...");
+      await new Promise(r => setTimeout(r, 800)); // visual pause
 
       setAgentStep("done");
       setLoadingText("Success! Issue registered, verified, and routed successfully.");

@@ -1,379 +1,363 @@
-import { USE_MOCK_SERVICES, API_URL } from "./config";
-import { getAuthHeaders } from "./auth";
-import { Issue, Thread, Department, Complaint, Escalation, Notification, AgentLog } from "../types";
+import { db, functions } from "./firebase";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  orderBy,
+  onSnapshot,
+  where
+} from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { Issue, Thread, Department, Complaint, Escalation, Notification, AgentLog, Severity, IssueStatus } from "../types";
 
-// Dynamic change listener registry for frontend view updates
 type ChangeListener = () => void;
-const dbListeners = new Map<string, Set<ChangeListener>>();
 
-export function subscribeToCollection(collection: string, listener: ChangeListener): () => void {
-  if (!dbListeners.has(collection)) {
-    dbListeners.set(collection, new Set());
+export function subscribeToCollection(collectionName: string, listener: ChangeListener): () => void {
+  // Translate collections if needed
+  let fsCollection = collectionName;
+  if (collectionName === "agent_logs") {
+    fsCollection = "agent_logs";
   }
-  dbListeners.get(collection)!.add(listener);
-
-  // Setup simple short polling (interval) in server mode to auto-refresh metrics
-  let pollInterval: any = null;
-  if (!USE_MOCK_SERVICES) {
-    pollInterval = setInterval(() => {
-      listener();
-    }, 4000); // Poll every 4 seconds
-  }
-
-  return () => {
-    const list = dbListeners.get(collection);
-    if (list) {
-      list.delete(listener);
-    }
-    if (pollInterval) {
-      clearInterval(pollInterval);
-    }
-  };
+  const q = query(collection(db, fsCollection));
+  return onSnapshot(q, () => {
+    listener();
+  });
 }
 
-function triggerCollectionUpdate(collection: string) {
-  const list = dbListeners.get(collection);
-  if (list) {
-    list.forEach(listener => listener());
-  }
-}
+// Map Firestore fields to UI expected fields
+function mapFirestoreIssueToFrontend(docId: string, data: any): Issue {
+  // Category mapping
+  let category: Issue["category"] = "Garbage";
+  if (data.category === "pothole") category = "Pothole";
+  else if (data.category === "water_leak") category = "Water Leakage";
+  else if (data.category === "streetlight") category = "Streetlight";
+  else if (data.category === "garbage") category = "Garbage";
+  else if (data.category === "other") category = "Critical Infrastructure";
 
-// Map MongoDB _id to frontend id
-function mapDoc<T>(doc: any): T {
-  if (!doc) return doc;
+  // Severity mapping
+  let severity: Severity = "MEDIUM";
+  if (data.severity === "low") severity = "LOW";
+  else if (data.severity === "moderate") severity = "MEDIUM";
+  else if (data.severity === "high") severity = "HIGH";
+  else if (data.severity === "critical") severity = "CRITICAL";
+
+  // Status mapping
+  let status: IssueStatus = "REPORTED";
+  if (data.status === "verifying") status = "REPORTED";
+  else if (data.status === "routed") status = "ROUTED";
+  else if (data.status === "in_progress") status = "IN_PROGRESS";
+  else if (data.status === "escalated") status = "ESCALATED";
+  else if (data.status === "resolved") status = "RESOLVED";
+
+  // Media Urls
+  const mediaUrls: string[] = [];
+  if (data.media?.photoUrl) mediaUrls.push(data.media.photoUrl);
+  if (data.media?.videoUrl) mediaUrls.push(data.media.videoUrl);
+
   return {
-    ...doc,
-    id: doc._id || doc.id
-  } as T;
+    id: docId,
+    title: data.title || "Civic Issue",
+    category,
+    description: data.description || "",
+    severity,
+    status,
+    location: data.location?.address || "Coordinate Location",
+    latitude: data.location?.lat || 0,
+    longitude: data.location?.lng || 0,
+    ward: data.location?.ward || "Ward 1 (Central)",
+    createdBy: data.reportedBy?.[0] || "",
+    createdByName: "Citizen",
+    mediaUrls,
+    voiceTranscript: data.media?.voiceTranscript || undefined,
+    urgencyScore: data.urgencyScore || 20,
+    threadId: data.parentIssueId || undefined,
+    departmentId: data.departmentId || undefined,
+    slaDays: 7, // Default
+    createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
+  };
 }
 
 export const dbService = {
   initialize() {
-    if (USE_MOCK_SERVICES) {
-      // Seed default departments & issues in localStorage
-      const DEFAULT_DEPARTMENTS = [
-        { id: "dept_garbage", name: "Sanitation & Waste Management Department", category: "Garbage", ward: "All Wards", email: "sanitation@municipal.gov.in", contactNumber: "+91 11 2345 6781" },
-        { id: "dept_electricity", name: "Municipal Electricity & Public Lighting Board", category: "Streetlight", ward: "All Wards", email: "lighting@municipal.gov.in", contactNumber: "+91 11 2345 6782" },
-        { id: "dept_pwd", name: "Public Works Department (PWD) - Roads Division", category: "Pothole", ward: "All Wards", email: "pwd.roads@municipal.gov.in", contactNumber: "+91 11 2345 6783" },
-        { id: "dept_water", name: "Water Supply and Sewerage Board", category: "Water Leakage", ward: "All Wards", email: "watersupply@municipal.gov.in", contactNumber: "+91 11 2345 6784" },
-        { id: "dept_infrastructure", name: "Critical Infrastructure & Public Safety Commission", category: "Critical Infrastructure", ward: "All Wards", email: "safety.infra@municipal.gov.in", contactNumber: "+91 11 2345 6785" }
-      ];
-      if (!localStorage.getItem("nagrik_departments")) {
-        localStorage.setItem("nagrik_departments", JSON.stringify(DEFAULT_DEPARTMENTS));
-      }
-    }
+    // Seeding is handled backend-side by calling the seedDepartments Cloud Function
+    console.log("[dbService] Client Firestore database service initialized.");
   },
 
   // ISSUES
   async getIssues(): Promise<Issue[]> {
-    if (USE_MOCK_SERVICES) {
-      return JSON.parse(localStorage.getItem("nagrik_issues") || "[]");
-    } else {
-      const res = await fetch(`${API_URL}/issues`, { headers: getAuthHeaders() });
-      if (!res.ok) throw new Error("Failed to load issues");
-      const list = await res.json();
-      return list.map((doc: any) => mapDoc<Issue>(doc));
-    }
+    const q = query(collection(db, "issues"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    const issuesList: Issue[] = [];
+    
+    snapshot.forEach((snapDoc) => {
+      const data = snapDoc.data();
+      // Filter out duplicate_merged from primary feeds if needed
+      if (data.status !== "duplicate_merged") {
+        issuesList.push(mapFirestoreIssueToFrontend(snapDoc.id, data));
+      }
+    });
+    
+    return issuesList;
   },
 
   async getIssueById(id: string): Promise<Issue | null> {
-    if (USE_MOCK_SERVICES) {
-      const issues = await this.getIssues();
-      return issues.find(i => i.id === id) || null;
-    } else {
-      const res = await fetch(`${API_URL}/issues/${id}`, { headers: getAuthHeaders() });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return mapDoc<Issue>(data);
-    }
+    const docRef = doc(db, "issues", id);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+    return mapFirestoreIssueToFrontend(snap.id, snap.data());
   },
 
   async createIssue(issue: Omit<Issue, "id" | "createdAt" | "updatedAt">): Promise<Issue> {
-    if (USE_MOCK_SERVICES) {
-      const issues = await this.getIssues();
-      const newIssue: Issue = {
-        ...issue,
-        id: "iss_" + Math.random().toString(36).substr(2, 9),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      issues.push(newIssue);
-      localStorage.setItem("nagrik_issues", JSON.stringify(issues));
-      triggerCollectionUpdate("issues");
-      return newIssue;
-    } else {
-      // In server mode, the backend runs all agents internally.
-      // The backend endpoint expects: { description, latitude, longitude, voiceTranscript, imageUrl, ward }
-      const payload: any = {
-        description: issue.description,
-        latitude: issue.latitude,
-        longitude: issue.longitude,
-        ward: issue.ward,
-        voiceTranscript: issue.voiceTranscript || undefined,
-        imageUrl: issue.mediaUrls && issue.mediaUrls.length > 0 ? issue.mediaUrls[0] : undefined
-      };
-      const res = await fetch(`${API_URL}/issues/create`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ message: "Failed to create issue" }));
-        throw new Error(errData.message || "Failed to create issue");
+    console.log("[dbService] Creating report via submitReport Cloud Function...");
+    const submitReportFn = httpsCallable(functions, "submitReport");
+    
+    const res = await submitReportFn({
+      mediaType: "photo",
+      rawMediaUrl: issue.mediaUrls && issue.mediaUrls.length > 0 ? issue.mediaUrls[0] : "https://placeholder.svg",
+      userTextNote: issue.description,
+      voiceNoteUrl: null,
+      location: {
+        lat: issue.latitude,
+        lng: issue.longitude
       }
-      const data = await res.json();
-      triggerCollectionUpdate("issues");
-      return mapDoc<Issue>(data);
-    }
+    });
+
+    const { reportId } = res.data as { reportId: string };
+    console.log(`[dbService] Report created with ID: ${reportId}. Waiting for Intake Agent processing...`);
+
+    // Poll/wait for the report document to be updated with issueId by the background trigger
+    const reportRef = doc(db, "reports", reportId);
+    
+    return new Promise<Issue>((resolve, reject) => {
+      let attempts = 0;
+      const unsubscribe = onSnapshot(reportRef, async (snapshot) => {
+        const data = snapshot.data();
+        attempts++;
+        
+        if (data && data.issueId) {
+          unsubscribe();
+          const issueObj = await this.getIssueById(data.issueId);
+          if (issueObj) {
+            resolve(issueObj);
+          } else {
+            reject(new Error("Linked issue document could not be retrieved."));
+          }
+        } else if (data && data.processingStatus === "failed") {
+          unsubscribe();
+          reject(new Error("Intake Agent processing failed."));
+        } else if (attempts > 30) { // 30 second timeout
+          unsubscribe();
+          reject(new Error("AI Agent processing timed out."));
+        }
+      }, (error) => {
+        unsubscribe();
+        reject(error);
+      });
+    });
   },
 
   async updateIssue(id: string, updates: Partial<Issue>): Promise<Issue> {
-    // Standard update triggers resolution or general updates
-    if (USE_MOCK_SERVICES) {
-      const issues = await this.getIssues();
-      const index = issues.findIndex(i => i.id === id);
-      if (index === -1) throw new Error("Issue not found");
-      const updatedIssue = {
-        ...issues[index],
-        ...updates,
-        updatedAt: new Date().toISOString()
-      };
-      issues[index] = updatedIssue;
-      localStorage.setItem("nagrik_issues", JSON.stringify(issues));
-      triggerCollectionUpdate("issues");
-      return updatedIssue;
-    } else {
-      // In live MongoDB mode, we call specialized triggers
-      if (updates.status === "RESOLVED") {
-        const res = await fetch(`${API_URL}/issues/${id}/resolve`, {
-          method: "POST",
-          headers: getAuthHeaders()
-        });
-        if (!res.ok) throw new Error("Failed to resolve issue");
-        const data = await res.json();
-        triggerCollectionUpdate("issues");
-        return mapDoc<Issue>(data);
-      }
-      throw new Error("Update method not supported for this parameter in server mode.");
+    console.log(`[dbService] Updating issue ${id}...`);
+    
+    if (updates.status === "RESOLVED") {
+      const resolveIssueFn = httpsCallable(functions, "resolveIssue");
+      await resolveIssueFn({ issueId: id });
+      
+      const updated = await this.getIssueById(id);
+      if (!updated) throw new Error("Updated issue not found.");
+      return updated;
     }
+    
+    throw new Error("Direct client updates are not permitted by security rules.");
   },
 
   // THREADS
   async getThreads(): Promise<Thread[]> {
-    if (USE_MOCK_SERVICES) {
-      return JSON.parse(localStorage.getItem("nagrik_threads") || "[]");
-    } else {
-      // Threads collection read
-      const res = await fetch(`${API_URL}/threads`, { headers: getAuthHeaders() });
-      if (!res.ok) return [];
-      const list = await res.json();
-      return list.map((doc: any) => mapDoc<Thread>(doc));
+    const q = query(collection(db, "issues"), where("status", "==", "duplicate_merged"));
+    const snapshot = await getDocs(q);
+    const threads: Thread[] = [];
+    
+    // Group issues by parentId
+    const groups: Record<string, string[]> = {};
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.parentIssueId) {
+        if (!groups[data.parentIssueId]) groups[data.parentIssueId] = [];
+        groups[data.parentIssueId].push(docSnap.id);
+      }
+    });
+
+    for (const [parentId, children] of Object.entries(groups)) {
+      threads.push({
+        id: parentId,
+        issueIds: [parentId, ...children],
+        confirmationCount: children.length,
+        urgencyScore: 40,
+        status: "ROUTED",
+        createdAt: new Date().toISOString()
+      });
     }
+
+    return threads;
   },
 
   async getThreadById(id: string): Promise<Thread | null> {
-    if (USE_MOCK_SERVICES) {
-      const threads = await this.getThreads();
-      return threads.find(t => t.id === id) || null;
-    } else {
-      const res = await fetch(`${API_URL}/threads/${id}`, { headers: getAuthHeaders() });
-      if (!res.ok) return null;
-      const doc = await res.json();
-      return mapDoc<Thread>(doc);
-    }
-  },
+    const parentDoc = await this.getIssueById(id);
+    if (!parentDoc) return null;
+    
+    const q = query(collection(db, "issues"), where("parentIssueId", "==", id));
+    const snapshot = await getDocs(q);
+    const childrenIds: string[] = [];
+    snapshot.forEach(docSnap => childrenIds.push(docSnap.id));
 
-  async createThread(thread: Omit<Thread, "id" | "createdAt">): Promise<Thread> {
-    if (USE_MOCK_SERVICES) {
-      const threads = await this.getThreads();
-      const newThread: Thread = {
-        ...thread,
-        id: "thr_" + Math.random().toString(36).substr(2, 9),
-        createdAt: new Date().toISOString()
-      };
-      threads.push(newThread);
-      localStorage.setItem("nagrik_threads", JSON.stringify(threads));
-      triggerCollectionUpdate("threads");
-      return newThread;
-    }
-    throw new Error("Only server is allowed to manage threads.");
+    return {
+      id,
+      issueIds: [id, ...childrenIds],
+      confirmationCount: childrenIds.length + 1,
+      urgencyScore: parentDoc.urgencyScore,
+      status: parentDoc.status,
+      createdAt: parentDoc.createdAt
+    };
   },
-
-  async updateThread(id: string, updates: Partial<Thread>): Promise<Thread> {
-    if (USE_MOCK_SERVICES) {
-      const threads = await this.getThreads();
-      const index = threads.findIndex(t => t.id === id);
-      if (index === -1) throw new Error("Thread not found");
-      const updatedThread = { ...threads[index], ...updates };
-      threads[index] = updatedThread;
-      localStorage.setItem("nagrik_threads", JSON.stringify(threads));
-      triggerCollectionUpdate("threads");
-      return updatedThread;
+  
+  // REPORTS
+  async getReports(userId: string): Promise<any[]> {
+    const q = query(
+      collection(db, "reports"),
+      where("userId", "==", userId)
+    );
+    const snapshot = await getDocs(q);
+    const list: any[] = [];
+    
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+      let issueDetails = null;
+      if (data.issueId) {
+        issueDetails = await this.getIssueById(data.issueId);
+      }
+      
+      list.push({
+        id: docSnap.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        issue: issueDetails
+      });
     }
-    throw new Error("Only server is allowed to manage threads.");
+    
+    return list;
   },
 
   // DEPARTMENTS
   async getDepartments(): Promise<Department[]> {
-    if (USE_MOCK_SERVICES) {
-      return JSON.parse(localStorage.getItem("nagrik_departments") || "[]");
-    } else {
-      const res = await fetch(`${API_URL}/departments`, { headers: getAuthHeaders() });
-      if (!res.ok) return [];
-      const list = await res.json();
-      return list.map((doc: any) => mapDoc<Department>(doc));
-    }
+    const q = query(collection(db, "departments"));
+    const snapshot = await getDocs(q);
+    const list: Department[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      list.push({
+        id: docSnap.id,
+        name: data.name,
+        category: data.category,
+        ward: data.ward,
+        email: data.contactEmail,
+        contactNumber: data.contactPhone || ""
+      });
+    });
+    return list;
   },
 
-  // COMPLAINTS
+  // COMPLAINTS (Read from issues directly in Firebase mode)
   async getComplaints(): Promise<Complaint[]> {
-    if (USE_MOCK_SERVICES) {
-      return JSON.parse(localStorage.getItem("nagrik_complaints") || "[]");
-    } else {
-      const res = await fetch(`${API_URL}/complaints`, { headers: getAuthHeaders() });
-      if (!res.ok) return [];
-      const list = await res.json();
-      return list.map((doc: any) => mapDoc<Complaint>(doc));
-    }
+    const issues = await this.getIssues();
+    return issues
+      .filter((i) => i.departmentId && i.draftedComplaint)
+      .map((i) => ({
+        id: `complaint_${i.id}`,
+        issueId: i.id,
+        departmentId: i.departmentId!,
+        generatedComplaint: i.draftedComplaint!,
+        status: "SENT",
+        createdAt: i.updatedAt
+      }));
   },
 
-  async createComplaint(complaint: Omit<Complaint, "id" | "createdAt">): Promise<Complaint> {
-    if (USE_MOCK_SERVICES) {
-      const complaints = await this.getComplaints();
-      const newComplaint: Complaint = {
-        ...complaint,
-        id: "comp_" + Math.random().toString(36).substr(2, 9),
-        createdAt: new Date().toISOString()
-      };
-      complaints.push(newComplaint);
-      localStorage.setItem("nagrik_complaints", JSON.stringify(complaints));
-      triggerCollectionUpdate("complaints");
-      return newComplaint;
-    }
-    throw new Error("Complaints are drafted on the server side.");
-  },
-
-  // ESCALATIONS
+  // ESCALATIONS (Read from issues directly in Firebase mode)
   async getEscalations(): Promise<Escalation[]> {
-    if (USE_MOCK_SERVICES) {
-      return JSON.parse(localStorage.getItem("nagrik_escalations") || "[]");
-    } else {
-      const res = await fetch(`${API_URL}/escalations`, { headers: getAuthHeaders() });
-      if (!res.ok) return [];
-      const list = await res.json();
-      return list.map((doc: any) => mapDoc<Escalation>(doc));
-    }
-  },
-
-  async createEscalation(escalation: Omit<Escalation, "id" | "createdAt">): Promise<Escalation> {
-    if (USE_MOCK_SERVICES) {
-      const escalations = await this.getEscalations();
-      const newEscalation: Escalation = {
-        ...escalation,
-        id: "esc_" + Math.random().toString(36).substr(2, 9),
-        createdAt: new Date().toISOString()
-      };
-      escalations.push(newEscalation);
-      localStorage.setItem("nagrik_escalations", JSON.stringify(escalations));
-      triggerCollectionUpdate("escalations");
-      return newEscalation;
-    }
-    throw new Error("Escalations are computed on the server side.");
+    const issues = await this.getIssues();
+    return issues
+      .filter((i) => i.isEscalated && i.escalationNotice)
+      .map((i) => ({
+        id: `esc_${i.id}`,
+        issueId: i.id,
+        escalationLevel: 1,
+        generatedNotice: i.escalationNotice!,
+        createdAt: i.updatedAt
+      }));
   },
 
   // NOTIFICATIONS
   async getNotifications(userId: string): Promise<Notification[]> {
-    if (USE_MOCK_SERVICES) {
-      const allNotifs: Notification[] = JSON.parse(localStorage.getItem("nagrik_notifications") || "[]");
-      return allNotifs.filter(n => n.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    } else {
-      const res = await fetch(`${API_URL}/notifications`, { headers: getAuthHeaders() });
-      if (!res.ok) return [];
-      const list = await res.json();
-      return list.map((doc: any) => mapDoc<Notification>(doc));
-    }
-  },
-
-  async createNotification(userId: string, title: string, body: string): Promise<Notification> {
-    if (USE_MOCK_SERVICES) {
-      const notifications = JSON.parse(localStorage.getItem("nagrik_notifications") || "[]");
-      const newNotif: Notification = {
-        id: "ntf_" + Math.random().toString(36).substr(2, 9),
-        userId,
-        title,
-        body,
-        read: false,
-        createdAt: new Date().toISOString()
-      };
-      notifications.push(newNotif);
-      localStorage.setItem("nagrik_notifications", JSON.stringify(notifications));
-      triggerCollectionUpdate("notifications");
-      return newNotif;
-    }
-    throw new Error("Notifications are dispatched on the server side.");
+    const q = query(
+      collection(db, "notifications"),
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc")
+    );
+    const snapshot = await getDocs(q);
+    const list: Notification[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      list.push({
+        id: docSnap.id,
+        userId: data.userId,
+        title: data.title,
+        body: data.body,
+        read: data.read || false,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
+      });
+    });
+    return list;
   },
 
   async markNotificationRead(id: string): Promise<void> {
-    if (USE_MOCK_SERVICES) {
-      const notifications: Notification[] = JSON.parse(localStorage.getItem("nagrik_notifications") || "[]");
-      const index = notifications.findIndex(n => n.id === id);
-      if (index !== -1) {
-        notifications[index].read = true;
-        localStorage.setItem("nagrik_notifications", JSON.stringify(notifications));
-        triggerCollectionUpdate("notifications");
-      }
-    } else {
-      await fetch(`${API_URL}/notifications/${id}/read`, {
-        method: "PATCH",
-        headers: getAuthHeaders()
-      });
-      triggerCollectionUpdate("notifications");
-    }
+    const resolveIssueFn = httpsCallable(functions, "markNotificationRead");
+    await resolveIssueFn({ id });
   },
 
   // AGENT TELEMETRY LOGS
   async getAgentLogs(): Promise<AgentLog[]> {
-    if (USE_MOCK_SERVICES) {
-      const logs = JSON.parse(localStorage.getItem("nagrik_agent_logs") || "[]");
-      return logs.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    } else {
-      const res = await fetch(`${API_URL}/agent-logs`, { headers: getAuthHeaders() });
-      if (!res.ok) return [];
-      const list = await res.json();
-      return list.map((doc: any) => mapDoc<AgentLog>(doc));
-    }
-  },
+    const q = query(collection(db, "agent_logs"), orderBy("timestamp", "desc"));
+    const snapshot = await getDocs(q);
+    const logs: AgentLog[] = [];
+    
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      
+      // Map Firestore agent names to UI names
+      let agentName: AgentLog["agentName"] = "Intake Agent";
+      if (data.agentName === "intake") agentName = "Intake Agent";
+      else if (data.agentName === "verification") agentName = "Verification Agent";
+      else if (data.agentName === "routing") agentName = "Routing Agent";
+      else if (data.agentName === "escalation") agentName = "Escalation Agent";
 
-  async createAgentLog(agentName: AgentLog["agentName"], action: string, details: string, type: AgentLog["type"], issueId?: string): Promise<AgentLog> {
-    if (USE_MOCK_SERVICES) {
-      const logs = JSON.parse(localStorage.getItem("nagrik_agent_logs") || "[]");
-      const newLog: AgentLog = {
-        id: "log_" + Math.random().toString(36).substr(2, 9),
-        timestamp: new Date().toISOString(),
+      logs.push({
+        id: docSnap.id,
+        timestamp: data.timestamp?.toDate?.()?.toISOString() || new Date().toISOString(),
         agentName,
-        issueId,
-        action,
-        details,
-        type
-      };
-      logs.push(newLog);
-      localStorage.setItem("nagrik_agent_logs", JSON.stringify(logs));
-      triggerCollectionUpdate("agent_logs");
-      return newLog;
-    }
-    return {} as AgentLog; // Server creates logs in server mode
+        issueId: data.issueId || undefined,
+        action: data.action,
+        details: data.outputSummary || data.errorMessage || "",
+        type: data.success ? "success" : "error"
+      });
+    });
+    
+    return logs;
   },
 
   async clearAgentLogs(): Promise<void> {
-    if (USE_MOCK_SERVICES) {
-      localStorage.setItem("nagrik_agent_logs", JSON.stringify([]));
-      triggerCollectionUpdate("agent_logs");
-    } else {
-      await fetch(`${API_URL}/agent-logs/clear`, {
-        method: "POST",
-        headers: getAuthHeaders()
-      });
-      triggerCollectionUpdate("agent_logs");
-    }
+    const clearFn = httpsCallable(functions, "clearAgentLogs");
+    await clearFn();
   }
 };

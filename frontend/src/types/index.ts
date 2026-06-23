@@ -38,6 +38,11 @@ export interface Issue {
   urgencyScore: number; // calculated based on confirmations, severity, duplicate count
   threadId?: string; // linked thread
   departmentId?: string;
+  draftedComplaint?: string;
+  isEscalated?: boolean;
+  escalationNotice?: string;
+  primaryReportId?: string;
+  parentIssueId?: string;
   slaDays: number;
   createdAt: string;
   updatedAt: string;

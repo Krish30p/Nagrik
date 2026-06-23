@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { dbService, subscribeToCollection } from "../services/db";
-import { USE_MOCK_SERVICES, API_URL } from "../services/config";
-import { getAuthHeaders } from "../services/auth";
-import { escalationAgent } from "../services/agents/escalation";
+import { functions } from "../services/firebase";
+import { httpsCallable } from "firebase/functions";
+import { getSimulatedCurrentTime } from "../utils/time";
 import { AgentLog } from "../types";
 import { Terminal, Shield, ArrowRight, RefreshCw, Trash2, Clock, Play, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -22,13 +22,8 @@ export const AgentConsole: React.FC = () => {
     loadLogs();
     
     // Read current time offset to initialize display
-    if (USE_MOCK_SERVICES) {
-      const offset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
-      setSimulatedDays(Math.floor(offset / (24 * 3600 * 1000)));
-    } else {
-      // In server mode, stats updates will synchronize periodically, 
-      // but we can poll simulated clock state or calculate on reload.
-    }
+    const offset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
+    setSimulatedDays(Math.floor(offset / (24 * 3600 * 1000)));
 
     const unsubscribe = subscribeToCollection("agent_logs", loadLogs);
     return unsubscribe;
@@ -42,18 +37,11 @@ export const AgentConsole: React.FC = () => {
   const handleTriggerEscalation = async () => {
     setIsProcessing("escalation");
     try {
-      if (USE_MOCK_SERVICES) {
-        await escalationAgent.checkSLAAndEscalate();
-      } else {
-        const res = await fetch(`${API_URL}/agents/escalate`, {
-          method: "POST",
-          headers: getAuthHeaders()
-        });
-        if (!res.ok) throw new Error("Server SLA Sweep failed.");
-      }
+      const runEscalationFn = httpsCallable(functions, "runEscalationSweepCallable");
+      await runEscalationFn();
       await loadLogs();
     } catch (e) {
-      console.error(e);
+      console.error("Failed to run escalation sweep:", e);
     } finally {
       setIsProcessing(null);
     }
@@ -62,38 +50,19 @@ export const AgentConsole: React.FC = () => {
   const handleFastForward = async (days: number) => {
     setIsProcessing("time");
     try {
-      if (USE_MOCK_SERVICES) {
-        const currentOffset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
-        const addedOffset = days * 24 * 3600 * 1000;
-        const newOffset = currentOffset + addedOffset;
-        localStorage.setItem("nagrik_time_offset_ms", newOffset.toString());
-        setSimulatedDays(Math.floor(newOffset / (24 * 3600 * 1000)));
+      const currentOffset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
+      const addedOffset = days * 24 * 3600 * 1000;
+      const newOffset = currentOffset + addedOffset;
+      localStorage.setItem("nagrik_time_offset_ms", newOffset.toString());
+      setSimulatedDays(Math.floor(newOffset / (24 * 3600 * 1000)));
 
-        await dbService.createAgentLog(
-          "Escalation Agent",
-          "Time Travel Event",
-          `Fast-forwarded simulation clock by **${days} days**. Total offset: **${Math.floor(newOffset / (24 * 3600 * 1000))} days**. Checking SLA breaches...`,
-          "warning"
-        );
+      // Update simulation time offset on the backend to match SLA sweep evaluations
+      const fastForwardFn = httpsCallable(functions, "fastForwardSimulation");
+      await fastForwardFn({ days });
 
-        // Automatically trigger Escalation Agent check
-        await escalationAgent.checkSLAAndEscalate();
-      } else {
-        const res = await fetch(`${API_URL}/simulation/fast-forward`, {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ days })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setSimulatedDays(data.totalOffsetDays);
-        } else {
-          throw new Error("Server Time Travel failed.");
-        }
-      }
       await loadLogs();
     } catch (e) {
-      console.error(e);
+      console.error("Fast forward failed:", e);
     } finally {
       setIsProcessing(null);
     }
@@ -102,29 +71,15 @@ export const AgentConsole: React.FC = () => {
   const resetTime = async () => {
     setIsProcessing("time");
     try {
-      if (USE_MOCK_SERVICES) {
-        localStorage.setItem("nagrik_time_offset_ms", "0");
-        setSimulatedDays(0);
-        await dbService.createAgentLog(
-          "Escalation Agent",
-          "Time Reset",
-          `Reset simulation clock to normal system time.`,
-          "info"
-        );
-      } else {
-        const res = await fetch(`${API_URL}/simulation/reset`, {
-          method: "POST",
-          headers: getAuthHeaders()
-        });
-        if (res.ok) {
-          setSimulatedDays(0);
-        } else {
-          throw new Error("Server Time Reset failed.");
-        }
-      }
+      localStorage.setItem("nagrik_time_offset_ms", "0");
+      setSimulatedDays(0);
+      
+      const resetFn = httpsCallable(functions, "resetSimulation");
+      await resetFn();
+      
       await loadLogs();
     } catch (e) {
-      console.error(e);
+      console.error("Time reset failed:", e);
     } finally {
       setIsProcessing(null);
     }

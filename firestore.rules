@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isStaff() {
+      return isSignedIn() && request.auth.token.role == "staff";
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if true; // public leaderboard needs read access
+      allow create: if isOwner(userId);
+      // Citizens may only update their own displayName/locality; never civicPoints/reportsCount directly
+      allow update: if isOwner(userId)
+        && !('civicPoints' in request.resource.data.diff(resource.data).affectedKeys())
+        && !('reportsCount' in request.resource.data.diff(resource.data).affectedKeys())
+        && !('confirmationsCount' in request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false; // immutable once created; only Cloud Functions update processingStatus/issueId via Admin SDK
+    }
+
+    match /issues/{issueId} {
+      allow read: if true; // public map/dashboard
+      // Only staff may transition status to "resolved"; all other writes are Cloud-Functions-only (Admin SDK bypasses rules)
+      allow update: if isStaff()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvedAt', 'resolvedBy', 'updatedAt'])
+        && request.resource.data.status == "resolved";
+      allow create, delete: if false;
+    }
+
+    match /departments/{departmentId} {
+      allow read: if true;
+      allow write: if false; // seeded/managed by admin scripts only
+    }
+
+    match /agent_logs/{logId} {
+      allow read: if isStaff(); // internal transparency view, not public
+      allow write: if false;
+    }
+
+    match /config/{docId} {
+      allow read: if true; // client may need SLA hours for display
+      allow write: if false;
+    }
+  }
+}
