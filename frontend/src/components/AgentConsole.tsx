@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { dbService, subscribeToCollection } from "../services/db";
-import { functions } from "../services/firebase";
-import { httpsCallable } from "firebase/functions";
+import { API_BASE_URL } from "../services/firebase";
 import { getSimulatedCurrentTime } from "../utils/time";
 import { AgentLog } from "../types";
 import { Terminal, Shield, ArrowRight, RefreshCw, Trash2, Clock, Play, ChevronDown, ChevronUp } from "lucide-react";
@@ -37,8 +36,8 @@ export const AgentConsole: React.FC = () => {
   const handleTriggerEscalation = async () => {
     setIsProcessing("escalation");
     try {
-      const runEscalationFn = httpsCallable(functions, "runEscalationSweepCallable");
-      await runEscalationFn();
+      const res = await fetch(`${API_BASE_URL}/agents/escalate`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to trigger sweep");
       await loadLogs();
     } catch (e) {
       console.error("Failed to run escalation sweep:", e);
@@ -57,8 +56,12 @@ export const AgentConsole: React.FC = () => {
       setSimulatedDays(Math.floor(newOffset / (24 * 3600 * 1000)));
 
       // Update simulation time offset on the backend to match SLA sweep evaluations
-      const fastForwardFn = httpsCallable(functions, "fastForwardSimulation");
-      await fastForwardFn({ days });
+      const res = await fetch(`${API_BASE_URL}/simulation/fast-forward`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days })
+      });
+      if (!res.ok) throw new Error("Failed to fast-forward");
 
       await loadLogs();
     } catch (e) {
@@ -74,8 +77,8 @@ export const AgentConsole: React.FC = () => {
       localStorage.setItem("nagrik_time_offset_ms", "0");
       setSimulatedDays(0);
       
-      const resetFn = httpsCallable(functions, "resetSimulation");
-      await resetFn();
+      const res = await fetch(`${API_BASE_URL}/simulation/reset`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to reset");
       
       await loadLogs();
     } catch (e) {

@@ -23,6 +23,7 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue }) => {
     IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
     ESCALATED: "bg-red-100 text-red-700 border-red-200 animate-pulse",
     RESOLVED: "bg-green-150 text-green-800 border-green-250",
+    DUPLICATE_MERGED: "bg-slate-100 text-slate-400 border-slate-200",
   }[issue.status];
 
   // Calculate SLA time progress

@@ -6,7 +6,8 @@ export type IssueStatus =
   | 'ROUTED'
   | 'IN_PROGRESS'
   | 'ESCALATED'
-  | 'RESOLVED';
+  | 'RESOLVED'
+  | 'DUPLICATE_MERGED';
 
 export interface User {
   id: string;

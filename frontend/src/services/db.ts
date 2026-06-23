@@ -1,222 +1,227 @@
-import { db, functions } from "./firebase";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  orderBy,
-  onSnapshot,
-  where
-} from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { Issue, Thread, Department, Complaint, Escalation, Notification, AgentLog, Severity, IssueStatus } from "../types";
+import { API_BASE_URL, WS_URL } from "./firebase";
+import { getAuthHeaders } from "./auth";
+import { Issue, Thread, Department, Complaint, Escalation, Notification, AgentLog } from "../types";
 
 type ChangeListener = () => void;
 
-export function subscribeToCollection(collectionName: string, listener: ChangeListener): () => void {
-  // Translate collections if needed
-  let fsCollection = collectionName;
-  if (collectionName === "agent_logs") {
-    fsCollection = "agent_logs";
+// WebSocket connection management for real-time updates
+let socket: WebSocket | null = null;
+const socketListeners = new Set<(collectionName: string) => void>();
+
+function getWebSocketConnection() {
+  if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
+    return socket;
   }
-  const q = query(collection(db, fsCollection));
-  return onSnapshot(q, () => {
-    listener();
-  });
+
+  console.log("[WebSocket] Connecting to real-time change stream relay...");
+  socket = new WebSocket(WS_URL);
+
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.collection) {
+        console.log(`[WebSocket] Change broadcast received for collection: ${data.collection}`);
+        socketListeners.forEach((listener) => listener(data.collection));
+      }
+    } catch (err) {
+      console.error("[WebSocket] Event parsing failed:", err);
+    }
+  };
+
+  socket.onerror = (err) => {
+    console.error("[WebSocket] Connection error:", err);
+  };
+
+  socket.onclose = () => {
+    console.log("[WebSocket] Relay connection closed. Reconnecting in 3 seconds...");
+    socket = null;
+    setTimeout(getWebSocketConnection, 3000);
+  };
+
+  return socket;
 }
 
-// Map Firestore fields to UI expected fields
-function mapFirestoreIssueToFrontend(docId: string, data: any): Issue {
-  // Category mapping
-  let category: Issue["category"] = "Garbage";
-  if (data.category === "pothole") category = "Pothole";
-  else if (data.category === "water_leak") category = "Water Leakage";
-  else if (data.category === "streetlight") category = "Streetlight";
-  else if (data.category === "garbage") category = "Garbage";
-  else if (data.category === "other") category = "Critical Infrastructure";
+// Auto init WebSocket connection
+setTimeout(getWebSocketConnection, 100);
 
-  // Severity mapping
-  let severity: Severity = "MEDIUM";
-  if (data.severity === "low") severity = "LOW";
-  else if (data.severity === "moderate") severity = "MEDIUM";
-  else if (data.severity === "high") severity = "HIGH";
-  else if (data.severity === "critical") severity = "CRITICAL";
+export function subscribeToCollection(collectionName: string, listener: ChangeListener): () => void {
+  // Map collection names (e.g. complaints/escalations are simulated from issues)
+  const mappedCollection = collectionName === "complaints" || collectionName === "escalations" ? "issues" : collectionName;
 
-  // Status mapping
-  let status: IssueStatus = "REPORTED";
-  if (data.status === "verifying") status = "REPORTED";
-  else if (data.status === "routed") status = "ROUTED";
-  else if (data.status === "in_progress") status = "IN_PROGRESS";
-  else if (data.status === "escalated") status = "ESCALATED";
-  else if (data.status === "resolved") status = "RESOLVED";
+  const wrapper = (changedCollection: string) => {
+    if (changedCollection === mappedCollection) {
+      listener();
+    }
+  };
 
-  // Media Urls
-  const mediaUrls: string[] = [];
-  if (data.media?.photoUrl) mediaUrls.push(data.media.photoUrl);
-  if (data.media?.videoUrl) mediaUrls.push(data.media.videoUrl);
+  socketListeners.add(wrapper);
+  getWebSocketConnection();
 
-  return {
-    id: docId,
-    title: data.title || "Civic Issue",
-    category,
-    description: data.description || "",
-    severity,
-    status,
-    location: data.location?.address || "Coordinate Location",
-    latitude: data.location?.lat || 0,
-    longitude: data.location?.lng || 0,
-    ward: data.location?.ward || "Ward 1 (Central)",
-    createdBy: data.reportedBy?.[0] || "",
-    createdByName: "Citizen",
-    mediaUrls,
-    voiceTranscript: data.media?.voiceTranscript || undefined,
-    urgencyScore: data.urgencyScore || 20,
-    threadId: data.parentIssueId || undefined,
-    departmentId: data.departmentId || undefined,
-    slaDays: 7, // Default
-    createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
+  return () => {
+    socketListeners.delete(wrapper);
   };
 }
 
 export const dbService = {
   initialize() {
-    // Seeding is handled backend-side by calling the seedDepartments Cloud Function
-    console.log("[dbService] Client Firestore database service initialized.");
+    console.log("[dbService] Client Mongoose/Express database service initialized.");
+    // Call seed reference data endpoint on load if needed
+    fetch(`${API_BASE_URL}/seed`, { method: "POST" })
+      .then(res => res.json())
+      .then(data => console.log("[dbService] Database seed check completed:", data))
+      .catch(err => console.error("[dbService] Auto-seed failed:", err));
   },
 
   // ISSUES
   async getIssues(): Promise<Issue[]> {
-    const q = query(collection(db, "issues"), orderBy("createdAt", "desc"));
-    const snapshot = await getDocs(q);
-    const issuesList: Issue[] = [];
-    
-    snapshot.forEach((snapDoc) => {
-      const data = snapDoc.data();
-      // Filter out duplicate_merged from primary feeds if needed
-      if (data.status !== "duplicate_merged") {
-        issuesList.push(mapFirestoreIssueToFrontend(snapDoc.id, data));
-      }
-    });
-    
-    return issuesList;
+    const res = await fetch(`${API_BASE_URL}/issues`);
+    if (!res.ok) throw new Error("Failed to fetch active issues list");
+    const list: Issue[] = await res.json();
+    // Filter out duplicate_merged issues for main map/dashboard views
+    return list.filter((i) => i.status !== "DUPLICATE_MERGED");
   },
 
   async getIssueById(id: string): Promise<Issue | null> {
-    const docRef = doc(db, "issues", id);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    return mapFirestoreIssueToFrontend(snap.id, snap.data());
+    const res = await fetch(`${API_BASE_URL}/issues/${id}`);
+    if (!res.ok) return null;
+    return res.json();
   },
 
-  async createIssue(issue: Omit<Issue, "id" | "createdAt" | "updatedAt">): Promise<Issue> {
-    console.log("[dbService] Creating report via submitReport Cloud Function...");
-    const submitReportFn = httpsCallable(functions, "submitReport");
-    
-    const res = await submitReportFn({
-      mediaType: "photo",
-      rawMediaUrl: issue.mediaUrls && issue.mediaUrls.length > 0 ? issue.mediaUrls[0] : "https://placeholder.svg",
-      userTextNote: issue.description,
-      voiceNoteUrl: null,
-      location: {
-        lat: issue.latitude,
-        lng: issue.longitude
-      }
+  async createIssue(issue: Omit<Issue, "id" | "createdAt" | "updatedAt"> & { voiceNoteUrl?: string }): Promise<Issue> {
+    console.log("[dbService] Creating report via submitReport API endpoint...");
+    const res = await fetch(`${API_BASE_URL}/issues/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({
+        mediaType: "photo",
+        rawMediaUrl: issue.mediaUrls && issue.mediaUrls.length > 0 ? issue.mediaUrls[0] : "https://placeholder.svg",
+        voiceNoteUrl: issue.voiceNoteUrl || null,
+        userTextNote: issue.description,
+        location: {
+          lat: issue.latitude,
+          lng: issue.longitude
+        }
+      })
     });
 
-    const { reportId } = res.data as { reportId: string };
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to create issue report");
+    }
+
+    const { reportId } = await res.json();
     console.log(`[dbService] Report created with ID: ${reportId}. Waiting for Intake Agent processing...`);
 
-    // Poll/wait for the report document to be updated with issueId by the background trigger
-    const reportRef = doc(db, "reports", reportId);
-    
+    // Poll/wait until the report document is updated with issueId by the background trigger
     return new Promise<Issue>((resolve, reject) => {
       let attempts = 0;
-      const unsubscribe = onSnapshot(reportRef, async (snapshot) => {
-        const data = snapshot.data();
+      const interval = setInterval(async () => {
         attempts++;
-        
-        if (data && data.issueId) {
-          unsubscribe();
-          const issueObj = await this.getIssueById(data.issueId);
-          if (issueObj) {
-            resolve(issueObj);
-          } else {
-            reject(new Error("Linked issue document could not be retrieved."));
+        try {
+          const myReportsRes = await fetch(`${API_BASE_URL}/my-reports`, {
+            headers: getAuthHeaders()
+          });
+          if (myReportsRes.ok) {
+            const reports = await myReportsRes.json();
+            const report = reports.find((r: any) => r.id === reportId);
+            if (report && report.issueId) {
+              clearInterval(interval);
+              const issueObj = await this.getIssueById(report.issueId);
+              if (issueObj) {
+                resolve(issueObj);
+              } else {
+                reject(new Error("Linked issue details could not be retrieved"));
+              }
+            } else if (report && report.processingStatus === "failed") {
+              clearInterval(interval);
+              reject(new Error("Intake Agent processing failed."));
+            }
           }
-        } else if (data && data.processingStatus === "failed") {
-          unsubscribe();
-          reject(new Error("Intake Agent processing failed."));
-        } else if (attempts > 30) { // 30 second timeout
-          unsubscribe();
+        } catch (err) {
+          console.error(err);
+        }
+
+        if (attempts > 30) {
+          clearInterval(interval);
           reject(new Error("AI Agent processing timed out."));
         }
-      }, (error) => {
-        unsubscribe();
-        reject(error);
-      });
+      }, 1000);
     });
   },
 
   async updateIssue(id: string, updates: Partial<Issue>): Promise<Issue> {
-    console.log(`[dbService] Updating issue ${id}...`);
-    
+    console.log(`[dbService] Updating issue status: ${id}...`);
     if (updates.status === "RESOLVED") {
-      const resolveIssueFn = httpsCallable(functions, "resolveIssue");
-      await resolveIssueFn({ issueId: id });
-      
+      const res = await fetch(`${API_BASE_URL}/issues/${id}/resolve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ status: "resolved" })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to resolve issue");
+      }
+
       const updated = await this.getIssueById(id);
-      if (!updated) throw new Error("Updated issue not found.");
+      if (!updated) throw new Error("Updated issue not found");
       return updated;
     }
-    
-    throw new Error("Direct client updates are not permitted by security rules.");
+
+    throw new Error("Direct client updates are not permitted by document security rules.");
   },
 
   // THREADS
   async getThreads(): Promise<Thread[]> {
-    const q = query(collection(db, "issues"), where("status", "==", "duplicate_merged"));
-    const snapshot = await getDocs(q);
-    const threads: Thread[] = [];
+    const res = await fetch(`${API_BASE_URL}/issues`);
+    if (!res.ok) throw new Error("Failed to fetch threads catalog");
+    const allIssues: Issue[] = await res.json();
     
-    // Group issues by parentId
+    // Find duplicate_merged issues and group them by parentId
+    const duplicates = allIssues.filter((i) => i.status === "DUPLICATE_MERGED" && i.threadId);
+    
     const groups: Record<string, string[]> = {};
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data.parentIssueId) {
-        if (!groups[data.parentIssueId]) groups[data.parentIssueId] = [];
-        groups[data.parentIssueId].push(docSnap.id);
-      }
+    duplicates.forEach((issue) => {
+      const parentId = issue.threadId!;
+      if (!groups[parentId]) groups[parentId] = [];
+      groups[parentId].push(issue.id);
     });
 
-    for (const [parentId, children] of Object.entries(groups)) {
-      threads.push({
-        id: parentId,
-        issueIds: [parentId, ...children],
-        confirmationCount: children.length,
-        urgencyScore: 40,
-        status: "ROUTED",
-        createdAt: new Date().toISOString()
-      });
+    const threadsList: Thread[] = [];
+    for (const [parentId, childIds] of Object.entries(groups)) {
+      const parentDoc = allIssues.find((i) => i.id === parentId);
+      if (parentDoc) {
+        threadsList.push({
+          id: parentId,
+          issueIds: [parentId, ...childIds],
+          confirmationCount: childIds.length + 1,
+          urgencyScore: parentDoc.urgencyScore,
+          status: parentDoc.status,
+          createdAt: parentDoc.createdAt
+        });
+      }
     }
-
-    return threads;
+    return threadsList;
   },
 
   async getThreadById(id: string): Promise<Thread | null> {
+    const threads = await this.getThreads();
+    const thread = threads.find((t) => t.id === id);
+    if (thread) return thread;
+
+    // Default thread of size 1 if no duplicates are linked yet
     const parentDoc = await this.getIssueById(id);
     if (!parentDoc) return null;
-    
-    const q = query(collection(db, "issues"), where("parentIssueId", "==", id));
-    const snapshot = await getDocs(q);
-    const childrenIds: string[] = [];
-    snapshot.forEach(docSnap => childrenIds.push(docSnap.id));
-
     return {
-      id,
-      issueIds: [id, ...childrenIds],
-      confirmationCount: childrenIds.length + 1,
+      id: parentDoc.id,
+      issueIds: [parentDoc.id],
+      confirmationCount: 1,
       urgencyScore: parentDoc.urgencyScore,
       status: parentDoc.status,
       createdAt: parentDoc.createdAt
@@ -225,139 +230,82 @@ export const dbService = {
   
   // REPORTS
   async getReports(userId: string): Promise<any[]> {
-    const q = query(
-      collection(db, "reports"),
-      where("userId", "==", userId)
-    );
-    const snapshot = await getDocs(q);
-    const list: any[] = [];
-    
-    for (const docSnap of snapshot.docs) {
-      const data = docSnap.data();
-      let issueDetails = null;
-      if (data.issueId) {
-        issueDetails = await this.getIssueById(data.issueId);
-      }
-      
-      list.push({
-        id: docSnap.id,
-        ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-        issue: issueDetails
-      });
-    }
-    
-    return list;
+    const res = await fetch(`${API_BASE_URL}/my-reports`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error("Failed to fetch user reports history");
+    return res.json();
   },
 
   // DEPARTMENTS
   async getDepartments(): Promise<Department[]> {
-    const q = query(collection(db, "departments"));
-    const snapshot = await getDocs(q);
-    const list: Department[] = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      list.push({
-        id: docSnap.id,
-        name: data.name,
-        category: data.category,
-        ward: data.ward,
-        email: data.contactEmail,
-        contactNumber: data.contactPhone || ""
-      });
-    });
-    return list;
+    const res = await fetch(`${API_BASE_URL}/departments`);
+    if (!res.ok) throw new Error("Failed to fetch departments list");
+    return res.json();
   },
 
-  // COMPLAINTS (Read from issues directly in Firebase mode)
+  // COMPLAINTS
   async getComplaints(): Promise<Complaint[]> {
-    const issues = await this.getIssues();
-    return issues
-      .filter((i) => i.departmentId && i.draftedComplaint)
-      .map((i) => ({
-        id: `complaint_${i.id}`,
-        issueId: i.id,
-        departmentId: i.departmentId!,
-        generatedComplaint: i.draftedComplaint!,
-        status: "SENT",
-        createdAt: i.updatedAt
-      }));
+    const res = await fetch(`${API_BASE_URL}/complaints`);
+    if (!res.ok) throw new Error("Failed to fetch drafted complaints");
+    return res.json();
   },
 
-  // ESCALATIONS (Read from issues directly in Firebase mode)
+  // ESCALATIONS
   async getEscalations(): Promise<Escalation[]> {
-    const issues = await this.getIssues();
-    return issues
-      .filter((i) => i.isEscalated && i.escalationNotice)
-      .map((i) => ({
-        id: `esc_${i.id}`,
-        issueId: i.id,
-        escalationLevel: 1,
-        generatedNotice: i.escalationNotice!,
-        createdAt: i.updatedAt
-      }));
+    const res = await fetch(`${API_BASE_URL}/escalations`);
+    if (!res.ok) throw new Error("Failed to fetch active escalations");
+    return res.json();
   },
 
   // NOTIFICATIONS
   async getNotifications(userId: string): Promise<Notification[]> {
-    const q = query(
-      collection(db, "notifications"),
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc")
-    );
-    const snapshot = await getDocs(q);
-    const list: Notification[] = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      list.push({
-        id: docSnap.id,
-        userId: data.userId,
-        title: data.title,
-        body: data.body,
-        read: data.read || false,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
-      });
+    const res = await fetch(`${API_BASE_URL}/notifications`, {
+      headers: getAuthHeaders()
     });
-    return list;
+    if (!res.ok) throw new Error("Failed to fetch user notifications");
+    return res.json();
   },
 
   async markNotificationRead(id: string): Promise<void> {
-    const resolveIssueFn = httpsCallable(functions, "markNotificationRead");
-    await resolveIssueFn({ id });
+    const res = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+      method: "PATCH",
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error("Failed to update notification state");
   },
 
   // AGENT TELEMETRY LOGS
   async getAgentLogs(): Promise<AgentLog[]> {
-    const q = query(collection(db, "agent_logs"), orderBy("timestamp", "desc"));
-    const snapshot = await getDocs(q);
-    const logs: AgentLog[] = [];
-    
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      
-      // Map Firestore agent names to UI names
-      let agentName: AgentLog["agentName"] = "Intake Agent";
-      if (data.agentName === "intake") agentName = "Intake Agent";
-      else if (data.agentName === "verification") agentName = "Verification Agent";
-      else if (data.agentName === "routing") agentName = "Routing Agent";
-      else if (data.agentName === "escalation") agentName = "Escalation Agent";
-
-      logs.push({
-        id: docSnap.id,
-        timestamp: data.timestamp?.toDate?.()?.toISOString() || new Date().toISOString(),
-        agentName,
-        issueId: data.issueId || undefined,
-        action: data.action,
-        details: data.outputSummary || data.errorMessage || "",
-        type: data.success ? "success" : "error"
-      });
-    });
-    
-    return logs;
+    const res = await fetch(`${API_BASE_URL}/agent-logs`);
+    if (!res.ok) throw new Error("Failed to fetch agent logs");
+    return res.json();
   },
 
   async clearAgentLogs(): Promise<void> {
-    const clearFn = httpsCallable(functions, "clearAgentLogs");
-    await clearFn();
+    const res = await fetch(`${API_BASE_URL}/agent-logs/clear`, {
+      method: "POST"
+    });
+    if (!res.ok) throw new Error("Failed to clear agent logs");
+  },
+
+  // GRIDFS FILE UPLOADER
+  async uploadFile(file: File): Promise<string> {
+    console.log(`[dbService] Uploading file: ${file.name} to GridFS bucket...`);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`${API_BASE_URL}/media/upload`, {
+      method: "POST",
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to upload file to media storage");
+    }
+
+    const data = await res.json();
+    return data.downloadUrl;
   }
 };

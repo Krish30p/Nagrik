@@ -1,94 +1,57 @@
-import { auth, db } from "./firebase";
-import {
-  onAuthStateChanged as firebaseOnAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  signInAnonymously,
-  createUserWithEmailAndPassword,
-  updateProfile
-} from "firebase/auth";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { API_BASE_URL } from "./firebase";
 import { User } from "../types";
 
 type AuthStateListener = (user: User | null) => void;
 const listeners = new Set<AuthStateListener>();
 
 let currentUser: User | null = null;
-let profileUnsubscribe: (() => void) | null = null;
 
 function notifyListeners() {
   listeners.forEach((listener) => listener(currentUser));
 }
 
-// Listen to Firebase Auth state
-firebaseOnAuthStateChanged(auth, async (firebaseUser) => {
-  if (profileUnsubscribe) {
-    profileUnsubscribe();
-    profileUnsubscribe = null;
-  }
+// Helper to handle response and store token/user
+function handleAuthResponse(data: { token: string; user: any }) {
+  const mappedUser: User = {
+    id: data.user.id,
+    name: data.user.name || "Citizen",
+    email: data.user.email || "",
+    photoURL: `https://api.dicebear.com/7.x/adventurer/svg?seed=${data.user.id}`,
+    points: data.user.points || 0,
+    level: Math.floor((data.user.points || 0) / 100) + 1,
+    reportsCount: data.user.reportsCount || 0,
+    confirmationsCount: data.user.confirmationsCount || 0,
+    createdAt: data.user.createdAt || new Date().toISOString()
+  };
 
-  if (firebaseUser) {
-    console.log(`[Auth Service] Firebase Auth state changed: logged in as ${firebaseUser.uid} (anonymous: ${firebaseUser.isAnonymous})`);
-    
-    const userRef = doc(db, "users", firebaseUser.uid);
-    const userSnap = await getDoc(userRef);
-    
-    // Self-healing: if the user profile doesn't exist in Firestore, create it
-    if (!userSnap.exists()) {
-      const initialProfile = {
-        displayName: firebaseUser.isAnonymous ? "Citizen" : (firebaseUser.displayName || "Citizen"),
-        role: "citizen",
-        authProvider: firebaseUser.isAnonymous ? "anonymous" : "email",
-        createdAt: new Date(),
-        civicPoints: 0,
-        reportsCount: 0,
-        confirmationsCount: 0,
-        locality: null,
-        fcmToken: null
-      };
-      await setDoc(userRef, initialProfile);
-    }
+  localStorage.setItem("nagrik_token", data.token);
+  localStorage.setItem("nagrik_user", JSON.stringify(mappedUser));
+  localStorage.setItem("nagrik_role", data.user.role || "citizen");
+  currentUser = mappedUser;
+  notifyListeners();
+  return mappedUser;
+}
 
-    // Set up a real-time listener to user profile
-    profileUnsubscribe = onSnapshot(userRef, async (docSnap) => {
-      const data = docSnap.data();
-      if (data) {
-        // Read custom claims to get role
-        const tokenResult = await firebaseUser.getIdTokenResult(true);
-        const role = (tokenResult.claims.role as string) || data.role || "citizen";
-
-        currentUser = {
-          id: firebaseUser.uid,
-          name: data.displayName || "Citizen",
-          email: firebaseUser.email || "",
-          photoURL: firebaseUser.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${firebaseUser.uid}`,
-          points: data.civicPoints || 0,
-          level: Math.floor((data.civicPoints || 0) / 100) + 1,
-          reportsCount: data.reportsCount || 0,
-          confirmationsCount: data.confirmationsCount || 0,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
-        };
-        
-        localStorage.setItem("nagrik_user", JSON.stringify(currentUser));
-        localStorage.setItem("nagrik_role", role);
-        notifyListeners();
-      }
-    });
-
-  } else {
-    console.log("[Auth Service] Firebase Auth state changed: logged out");
-    currentUser = null;
-    localStorage.removeItem("nagrik_user");
-    localStorage.removeItem("nagrik_role");
+// Auto sign in anonymously on load if no user is present
+export async function initializeAuth() {
+  const token = localStorage.getItem("nagrik_token");
+  const storedUser = localStorage.getItem("nagrik_user");
+  
+  if (token && storedUser) {
+    currentUser = JSON.parse(storedUser);
     notifyListeners();
-    
-    // Auto sign in anonymously for citizens
-    console.log("[Auth Service] Auto signing in anonymously...");
-    signInAnonymously(auth).catch((err) => {
-      console.error("[Auth Service] Anonymous sign in failed:", err);
-    });
+  } else {
+    console.log("[Auth] No session found. Automatically signing in anonymously...");
+    try {
+      await authService.loginAnonymous();
+    } catch (err) {
+      console.error("[Auth] Auto anonymous sign-in failed:", err);
+    }
   }
-});
+}
+
+// Run auth initialization after script loads
+setTimeout(initializeAuth, 50);
 
 export const authService = {
   onAuthStateChanged(callback: AuthStateListener) {
@@ -100,7 +63,11 @@ export const authService = {
   },
 
   getCurrentUser(): User | null {
-    return currentUser || JSON.parse(localStorage.getItem("nagrik_user") || "null");
+    if (!currentUser) {
+      const stored = localStorage.getItem("nagrik_user");
+      if (stored) currentUser = JSON.parse(stored);
+    }
+    return currentUser;
   },
 
   isStaff(): boolean {
@@ -108,56 +75,72 @@ export const authService = {
   },
 
   async login(email: string, password: string): Promise<User> {
-    console.log(`[Auth Service] Logging in ${email}...`);
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    
-    // Force refresh token to get claims
-    const tokenResult = await userCredential.user.getIdTokenResult(true);
-    const role = (tokenResult.claims.role as string) || "citizen";
-    localStorage.setItem("nagrik_role", role);
+    console.log(`[Auth] Logging in: ${email}...`);
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
 
-    // Wait until profile is loaded
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    return currentUser!;
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || "Invalid email or password");
+    }
+
+    const data = await res.json();
+    return handleAuthResponse(data);
   },
 
   async register(name: string, email: string, password: string): Promise<User> {
-    console.log(`[Auth Service] Registering ${email}...`);
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    
-    // Update display name
-    await updateProfile(userCredential.user, { displayName: name });
-    
-    // Create profile doc in Firestore (trigger listener will capture it)
-    const userRef = doc(db, "users", userCredential.user.uid);
-    await setDoc(userRef, {
-      displayName: name,
-      role: "citizen",
-      authProvider: "email",
-      createdAt: new Date(),
-      civicPoints: 0,
-      reportsCount: 0,
-      confirmationsCount: 0,
-      locality: null,
-      fcmToken: null
+    console.log(`[Auth] Registering: ${email}...`);
+    const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password })
     });
-    
-    // Wait until profile listener triggers
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    return currentUser!;
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || "Registration failed");
+    }
+
+    const data = await res.json();
+    return handleAuthResponse(data);
+  },
+
+  async loginAnonymous(): Promise<User> {
+    console.log("[Auth] Performing anonymous sign-in...");
+    const res = await fetch(`${API_BASE_URL}/auth/anonymous`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+
+    if (!res.ok) {
+      throw new Error("Anonymous session creation failed");
+    }
+
+    const data = await res.json();
+    return handleAuthResponse(data);
   },
 
   async logout(): Promise<void> {
-    console.log("[Auth Service] Logging out...");
-    if (profileUnsubscribe) {
-      profileUnsubscribe();
-      profileUnsubscribe = null;
+    console.log("[Auth] Logging out current user...");
+    localStorage.removeItem("nagrik_token");
+    localStorage.removeItem("nagrik_user");
+    localStorage.removeItem("nagrik_role");
+    currentUser = null;
+    notifyListeners();
+
+    // Auto sign back in anonymously
+    try {
+      await this.loginAnonymous();
+    } catch (err) {
+      console.error("[Auth] Anonymous fallback failed after logout:", err);
     }
-    await signOut(auth);
   }
 };
-export function getAuthHeaders() {
-  return {}; // Dummy implementation since SDK handles auth tokens automatically
+
+export function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem("nagrik_token");
+  return token ? { "Authorization": `Bearer ${token}` } : {};
 }
