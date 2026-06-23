@@ -4,6 +4,9 @@ import dotenv from "dotenv";
 import path from "path";
 import { User, Config, Department } from "../models";
 
+// Load environment variables from project root or backend folder
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/nagrik";

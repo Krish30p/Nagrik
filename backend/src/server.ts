@@ -15,9 +15,10 @@ import { WebSocketServer, WebSocket } from "ws";
 import { User, Report, Issue, Department, AgentLog, Config, SimulationState, Notification } from "./models";
 import { intakeAgent, verificationAgent, routingAgent, escalationAgent, setWsNotifier, notifyCollectionChange } from "./agents";
 
-// Load environment variables
-const envPath = path.resolve(__dirname, "../.env");
-dotenv.config({ path: envPath });
+// Load environment variables from project root or backend folder
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const app = express();
 const server = http.createServer(app);
