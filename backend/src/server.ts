@@ -79,11 +79,26 @@ mongoose.connection.once("open", () => {
       console.log("[Change Stream] Broadcast change in issues collection");
       broadcastEvent({ collection: "issues", type: "change" });
     });
+    issuesStream.on("error", (err) => {
+      console.warn("[MongoDB] Change stream error on 'issues' (likely standalone server). Native Change Streams disabled for 'issues'.");
+    });
 
     const logsStream = mongoose.connection.collection("agent_logs").watch();
     logsStream.on("change", (change) => {
       console.log("[Change Stream] Broadcast change in agent_logs collection");
       broadcastEvent({ collection: "agent_logs", type: "change" });
+    });
+    logsStream.on("error", (err) => {
+      console.warn("[MongoDB] Change stream error on 'agent_logs' (likely standalone server). Native Change Streams disabled for 'agent_logs'.");
+    });
+
+    const notificationsStream = mongoose.connection.collection("notifications").watch();
+    notificationsStream.on("change", (change) => {
+      console.log("[Change Stream] Broadcast change in notifications collection");
+      broadcastEvent({ collection: "notifications", type: "change" });
+    });
+    notificationsStream.on("error", (err) => {
+      console.warn("[MongoDB] Change stream error on 'notifications' (likely standalone server). Native Change Streams disabled for 'notifications'.");
     });
   } catch (err) {
     console.warn(
