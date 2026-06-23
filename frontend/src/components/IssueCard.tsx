@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Issue } from "../types";
-import { MapPin, Calendar, Users, AlertTriangle, Clock } from "lucide-react";
+import { MapPin, Calendar, Users, Clock } from "lucide-react";
 import { getSimulatedCurrentTime } from "../utils/time";
 
 interface IssueCardProps {

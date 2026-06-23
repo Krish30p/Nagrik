@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Issue, Complaint, Escalation } from "../types";
 import { dbService } from "../services/db";
-import { CheckCircle2, ChevronRight, FileText, Send, AlertOctagon, Wrench, Eye, ShieldCheck } from "lucide-react";
+import { CheckCircle2, FileText, Send, AlertOctagon, Wrench, Eye, ShieldCheck } from "lucide-react";
 
 interface IssueTimelineProps {
   issue: Issue;

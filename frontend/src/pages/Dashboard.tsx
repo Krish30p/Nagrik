@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { dbService, subscribeToCollection } from "../services/db";
 import { Issue } from "../types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, FileSpreadsheet, ListTodo, Plus, Shield, Users } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, FileSpreadsheet, ListTodo, Plus, Shield } from "lucide-react";
 import { IssueCard } from "../components/IssueCard";
 
 export const Dashboard: React.FC = () => {
@@ -18,7 +18,7 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     dbService.initialize(); // Ensure DB is initialized
-    loadData();
+    void Promise.resolve().then(loadData);
     const unsubscribe = subscribeToCollection("issues", loadData);
     return unsubscribe;
   }, []);

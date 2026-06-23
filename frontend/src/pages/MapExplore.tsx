@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { dbService, subscribeToCollection } from "../services/db";
-import { Issue, IssueStatus, Severity } from "../types";
-import { MapPin, Filter, Layers, ListFilter, AlertCircle, Sparkles, Navigation } from "lucide-react";
-import { IssueCard } from "../components/IssueCard";
+import { Issue, Severity } from "../types";
+import { MapPin, Filter, Layers, Sparkles, Navigation } from "lucide-react";
 
 export const MapExplore: React.FC = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -20,7 +19,7 @@ export const MapExplore: React.FC = () => {
   };
 
   useEffect(() => {
-    loadData();
+    void Promise.resolve().then(loadData);
     const unsubscribe = subscribeToCollection("issues", loadData);
     return unsubscribe;
   }, []);

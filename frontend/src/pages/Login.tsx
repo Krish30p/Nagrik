@@ -4,6 +4,10 @@ import { authService } from "../services/auth";
 import { USE_MOCK_SERVICES } from "../services/config";
 import { Shield, Sparkles, LogIn, UserPlus } from "lucide-react";
 
+function getErrorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export const Login: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState("");
@@ -18,8 +22,8 @@ export const Login: React.FC = () => {
     try {
       await authService.login(presetEmail, "password");
       navigate("/");
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Login failed"));
     }
   };
 
@@ -34,8 +38,8 @@ export const Login: React.FC = () => {
         await authService.register(name, email, password);
       }
       navigate("/");
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Authentication failed"));
     }
   };
 

@@ -4,6 +4,21 @@ import { Issue, Thread, Department, Complaint, Escalation, Notification, AgentLo
 
 type ChangeListener = () => void;
 
+export interface ReportHistoryItem {
+  id: string;
+  userId: string;
+  rawMediaUrl: string;
+  mediaType: "photo" | "video";
+  voiceNoteUrl?: string | null;
+  userTextNote?: string | null;
+  latitude: number;
+  longitude: number;
+  issueId: string | null;
+  processingStatus: "pending" | "processed" | "failed";
+  createdAt: string;
+  issue?: Issue | null;
+}
+
 // WebSocket connection management for real-time updates
 let socket: WebSocket | null = null;
 const socketListeners = new Set<(collectionName: string) => void>();
@@ -125,8 +140,8 @@ export const dbService = {
             headers: getAuthHeaders()
           });
           if (myReportsRes.ok) {
-            const reports = await myReportsRes.json();
-            const report = reports.find((r: any) => r.id === reportId);
+            const reports: ReportHistoryItem[] = await myReportsRes.json();
+            const report = reports.find((r) => r.id === reportId);
             if (report && report.issueId) {
               clearInterval(interval);
               const issueObj = await this.getIssueById(report.issueId);
@@ -229,7 +244,7 @@ export const dbService = {
   },
   
   // REPORTS
-  async getReports(userId: string): Promise<any[]> {
+  async getReports(): Promise<ReportHistoryItem[]> {
     const res = await fetch(`${API_BASE_URL}/my-reports`, {
       headers: getAuthHeaders()
     });
@@ -259,7 +274,7 @@ export const dbService = {
   },
 
   // NOTIFICATIONS
-  async getNotifications(userId: string): Promise<Notification[]> {
+  async getNotifications(): Promise<Notification[]> {
     const res = await fetch(`${API_BASE_URL}/notifications`, {
       headers: getAuthHeaders()
     });

@@ -12,7 +12,7 @@ export const Leaderboard: React.FC = () => {
     const loadUsers = async () => {
       const USE_MOCK = localStorage.getItem("nagrik_use_mock") !== "false";
       if (USE_MOCK) {
-        const mockUsers = JSON.parse(localStorage.getItem("nagrik_mock_users") || "[]");
+        const mockUsers = JSON.parse(localStorage.getItem("nagrik_mock_users") || "[]") as User[];
         const sorted = mockUsers.sort((a: User, b: User) => b.points - a.points);
         setUsers(sorted);
       } else {
@@ -21,9 +21,9 @@ export const Leaderboard: React.FC = () => {
             headers: getAuthHeaders()
           });
           if (res.ok) {
-            const data = await res.json();
+            const data = await res.json() as Array<User & { _id?: string }>;
             // Map _id to id for frontend type compatibility
-            const mapped = data.map((u: any) => ({ ...u, id: u._id || u.id }));
+            const mapped = data.map((u) => ({ ...u, id: u._id || u.id }));
             setUsers(mapped);
           }
         } catch (err) {

@@ -6,12 +6,28 @@ const listeners = new Set<AuthStateListener>();
 
 let currentUser: User | null = null;
 
+interface AuthResponseUser {
+  id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  points?: number;
+  reportsCount?: number;
+  confirmationsCount?: number;
+  createdAt?: string;
+}
+
+interface AuthResponse {
+  token: string;
+  user: AuthResponseUser;
+}
+
 function notifyListeners() {
   listeners.forEach((listener) => listener(currentUser));
 }
 
 // Helper to handle response and store token/user
-function handleAuthResponse(data: { token: string; user: any }) {
+function handleAuthResponse(data: AuthResponse) {
   const mappedUser: User = {
     id: data.user.id,
     name: data.user.name || "Citizen",

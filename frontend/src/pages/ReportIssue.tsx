@@ -2,7 +2,32 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { dbService } from "../services/db";
 import { authService } from "../services/auth";
-import { MapPin, Image as ImageIcon, Mic, Sparkles, Navigation, Send, CheckCircle2, Video, X } from "lucide-react";
+import { Image as ImageIcon, Mic, Sparkles, Navigation, Send, CheckCircle2, X } from "lucide-react";
+
+type SpeechRecognitionConstructor = new () => {
+  continuous: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+};
+
+interface SpeechRecognitionResultEvent {
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionWindow extends Window {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+}
+
+function getErrorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
 
 const DEMO_PRESETS = [
   {
@@ -80,12 +105,13 @@ export const ReportIssue: React.FC = () => {
           setVoiceNoteUrl(downloadUrl);
           
           // Basic Web Speech Recognition for local transcription
-          const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+          const speechWindow = window as SpeechRecognitionWindow;
+          const SpeechRecognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
           if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.continuous = false;
             recognition.lang = "en-US";
-            recognition.onresult = (event: any) => {
+            recognition.onresult = (event) => {
               const transcript = event.results[0][0].transcript;
               setVoiceText(transcript);
             };
@@ -94,8 +120,8 @@ export const ReportIssue: React.FC = () => {
           } else {
             setVoiceText("Audio voice note attachment submitted.");
           }
-        } catch (err: any) {
-          alert("Audio upload failed: " + err.message);
+        } catch (err: unknown) {
+          alert("Audio upload failed: " + getErrorMessage(err, "Unknown upload error"));
         } finally {
           setIsUploading(false);
         }
@@ -137,8 +163,8 @@ export const ReportIssue: React.FC = () => {
     try {
       const downloadUrl = await dbService.uploadFile(file);
       setImageUrl(downloadUrl);
-    } catch (err: any) {
-      alert("Media upload failed: " + err.message);
+    } catch (err: unknown) {
+      alert("Media upload failed: " + getErrorMessage(err, "Unknown upload error"));
     } finally {
       setIsUploading(false);
     }
@@ -220,9 +246,9 @@ export const ReportIssue: React.FC = () => {
       setTimeout(() => {
         navigate(`/issues/${issue.id}`);
       }, 1500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert("Agent routing error: " + err.message);
+      alert("Agent routing error: " + getErrorMessage(err, "Unknown routing error"));
       setAgentStep("idle");
     }
   };

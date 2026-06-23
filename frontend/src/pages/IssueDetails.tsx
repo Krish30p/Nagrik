@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { dbService, subscribeToCollection } from "../services/db";
 import { authService } from "../services/auth";
-import { Issue, Department, Complaint } from "../types";
+import { Issue, Department } from "../types";
 import { IssueTimeline } from "../components/IssueTimeline";
 import { ArrowLeft, MapPin, Calendar, User, Phone, Mail, Award, CheckCircle, Wrench } from "lucide-react";
 
@@ -10,12 +10,11 @@ export const IssueDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [issue, setIssue] = useState<Issue | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
-  const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
 
   const navigate = useNavigate();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!id) return;
     const item = await dbService.getIssueById(id);
     if (item) {
@@ -29,12 +28,16 @@ export const IssueDetails: React.FC = () => {
 
       const complaints = await dbService.getComplaints();
       const comp = complaints.find((c) => c.issueId === item.id);
-      if (comp) setComplaint(comp);
+      if (comp?.departmentId && !item.departmentId) {
+        const departments = await dbService.getDepartments();
+        const dept = departments.find((d) => d.id === comp.departmentId);
+        if (dept) setDepartment(dept);
+      }
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    loadData();
+    void Promise.resolve().then(loadData);
     const unsubscribeIssues = subscribeToCollection("issues", loadData);
     const unsubscribeComplaints = subscribeToCollection("complaints", loadData);
 
@@ -47,7 +50,7 @@ export const IssueDetails: React.FC = () => {
       unsubscribeComplaints();
       unsubscribeAuth();
     };
-  }, [id]);
+  }, [loadData]);
 
   const handleResolveIssue = async () => {
     if (!issue) return;

@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { dbService, subscribeToCollection } from "../services/db";
 import { API_BASE_URL } from "../services/firebase";
-import { getSimulatedCurrentTime } from "../utils/time";
 import { AgentLog } from "../types";
-import { Terminal, Shield, ArrowRight, RefreshCw, Trash2, Clock, Play, ChevronDown, ChevronUp } from "lucide-react";
+import { Terminal, RefreshCw, Trash2, Clock, ChevronDown, ChevronUp } from "lucide-react";
 
 export const AgentConsole: React.FC = () => {
   const [logs, setLogs] = useState<AgentLog[]>([]);
@@ -18,11 +17,13 @@ export const AgentConsole: React.FC = () => {
   };
 
   useEffect(() => {
-    loadLogs();
+    void Promise.resolve().then(loadLogs);
     
     // Read current time offset to initialize display
     const offset = parseInt(localStorage.getItem("nagrik_time_offset_ms") || "0", 10);
-    setSimulatedDays(Math.floor(offset / (24 * 3600 * 1000)));
+    window.setTimeout(() => {
+      setSimulatedDays(Math.floor(offset / (24 * 3600 * 1000)));
+    }, 0);
 
     const unsubscribe = subscribeToCollection("agent_logs", loadLogs);
     return unsubscribe;

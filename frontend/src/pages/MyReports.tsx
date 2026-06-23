@@ -1,29 +1,29 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { authService } from "../services/auth";
-import { dbService } from "../services/db";
+import { dbService, ReportHistoryItem } from "../services/db";
 import { ArrowLeft, Clock, FileText, MapPin, Merge } from "lucide-react";
 
 export const MyReports: React.FC = () => {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<ReportHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const currentUser = authService.getCurrentUser();
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     if (currentUser) {
       try {
-        const data = await dbService.getReports(currentUser.id);
+        const data = await dbService.getReports();
         setReports(data);
       } catch (err) {
         console.error("Failed to load user reports:", err);
       }
     }
     setLoading(false);
-  };
+  }, [currentUser]);
 
   useEffect(() => {
-    loadReports();
-  }, []);
+    void Promise.resolve().then(loadReports);
+  }, [loadReports]);
 
   if (loading) {
     return (
@@ -79,7 +79,6 @@ export const MyReports: React.FC = () => {
             {reports.map((report) => {
               const issue = report.issue;
               const hasLinkedIssue = !!issue;
-              const isMerged = issue && issue.status === "RESOLVED" && report.issueId !== issue.id; // Conceptually merged or resolved
               
               // Status Badge config mapping
               let statusText = "Pending Analysis";
@@ -161,7 +160,7 @@ export const MyReports: React.FC = () => {
                       <div className="flex items-center gap-1.5 text-xs text-[#5B6B63]">
                         <MapPin className="h-3.5 w-3.5 text-[#1A7A52]" />
                         <span>
-                          [{report.location.lat.toFixed(4)}, {report.location.lng.toFixed(4)}]
+                          [{report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}]
                         </span>
                       </div>
                       

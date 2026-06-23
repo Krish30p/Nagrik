@@ -11,6 +11,7 @@ export const Navbar: React.FC = () => {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const userId = user?.id;
 
   useEffect(() => {
     // Auth Listener
@@ -20,8 +21,8 @@ export const Navbar: React.FC = () => {
 
     // Notifications Loader & Listener
     const loadNotifs = async () => {
-      if (user) {
-        const notifs = await dbService.getNotifications(user.id);
+      if (userId) {
+        const notifs = await dbService.getNotifications();
         setNotifications(notifs);
       } else {
         setNotifications([]);
@@ -37,7 +38,7 @@ export const Navbar: React.FC = () => {
       unsubscribeDb();
       unsubscribeUsers();
     };
-  }, [user?.id]);
+  }, [userId]);
 
   const handleLogout = async () => {
     await authService.logout();
@@ -48,7 +49,7 @@ export const Navbar: React.FC = () => {
     e.stopPropagation();
     await dbService.markNotificationRead(id);
     if (user) {
-      const notifs = await dbService.getNotifications(user.id);
+      const notifs = await dbService.getNotifications();
       setNotifications(notifs);
     }
   };
