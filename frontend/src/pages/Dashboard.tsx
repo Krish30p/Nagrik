@@ -56,41 +56,40 @@ export const Dashboard: React.FC = () => {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-64px)] bg-background text-on-surface font-body-md">
       {/* Welcome Banner */}
-      <div className="bg-slate-900 text-white rounded-2xl p-6 md:p-8 shadow-lg mb-8 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-teal-800/40 via-slate-900 to-slate-900 -z-10"></div>
-        <div className="text-left">
-          <span className="bg-primary/30 border border-primary/40 text-secondary text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+      <div className="bg-primary-container text-on-primary-container rounded-2xl p-6 md:p-8 shadow-sm mb-8 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="text-left relative z-10">
+          <span className="bg-background text-on-surface text-[10px] font-label-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
             Municipal Analytics Console
           </span>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-3 text-slate-100">
+          <h1 className="text-2xl md:text-3xl font-headline-lg mt-3">
             City Civic Health Dashboard
           </h1>
-          <p className="text-slate-400 text-sm mt-1.5 max-w-xl">
+          <p className="text-on-primary-container/80 font-body-sm mt-1.5 max-w-xl">
             Nagrik aggregates and processes reports using autonomous AI agents to close the municipal loop. View real-time SLA metrics below.
           </p>
         </div>
         <Link
           to="/report"
-          className="bg-primary hover:bg-primary-hover text-white text-sm font-bold px-5 py-3 rounded-xl shadow-md transition-all duration-200 shrink-0 flex items-center gap-2 group border border-teal-600/30"
+          className="bg-primary hover:bg-primary-hover text-on-primary font-label-bold px-5 py-3 rounded-xl shadow-sm transition-all duration-200 shrink-0 flex items-center gap-2 group relative z-10"
         >
-          <Plus className="h-4.5 w-4.5" />
+          <Plus className="h-4 w-4" />
           Report Infrastructure Issue
         </Link>
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between shadow-sm">
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between shadow-sm">
         <div className="flex items-center gap-2 self-start sm:self-center">
-          <ListTodo className="h-4.5 w-4.5 text-slate-500" />
-          <span className="text-sm font-bold text-slate-700">Filter Analysis:</span>
+          <ListTodo className="h-4 w-4 text-on-surface-variant" />
+          <span className="font-label-bold text-on-surface">Filter Analysis:</span>
         </div>
         <div className="flex flex-wrap w-full sm:w-auto gap-3">
           <select
             value={selectedWard}
             onChange={(e) => setSelectedWard(e.target.value)}
-            className="flex-1 sm:flex-initial bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3.5 py-2 font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex-1 sm:flex-initial bg-surface-container-low border border-outline-variant text-on-surface font-body-sm rounded-lg px-3.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="All Wards">All Wards</option>
             <option value="Ward 1">Ward 1 (Central)</option>
@@ -102,7 +101,7 @@ export const Dashboard: React.FC = () => {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="flex-1 sm:flex-initial bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-3.5 py-2 font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex-1 sm:flex-initial bg-surface-container-low border border-outline-variant text-on-surface font-body-sm rounded-lg px-3.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="All Categories">All Categories</option>
             {categories.map((c) => (
@@ -117,65 +116,65 @@ export const Dashboard: React.FC = () => {
       {/* Statistics Widgets */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {/* Total */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between text-left">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Reports</p>
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm flex flex-col justify-between text-left">
+          <p className="font-label-md text-on-surface-variant uppercase tracking-wider">Total Reports</p>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-extrabold text-slate-800">{totalReports}</span>
-            <span className="text-xs text-slate-400 font-medium">tickets</span>
+            <span className="font-headline-lg text-on-surface">{totalReports}</span>
+            <span className="font-body-sm text-on-surface-variant">tickets</span>
           </div>
-          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-slate-400 border-t border-slate-50 pt-2">
+          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-on-surface-variant border-t border-outline-variant pt-2">
             <FileSpreadsheet className="h-3.5 w-3.5" />
             <span>Civic Ledger Entries</span>
           </div>
         </div>
 
         {/* Open */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between text-left">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Open</p>
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm flex flex-col justify-between text-left">
+          <p className="font-label-md text-on-surface-variant uppercase tracking-wider">Active Open</p>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-extrabold text-blue-600">{openIssues}</span>
-            <span className="text-xs text-slate-400 font-medium">pending</span>
+            <span className="font-headline-lg text-primary">{openIssues}</span>
+            <span className="font-body-sm text-on-surface-variant">pending</span>
           </div>
-          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-blue-500 border-t border-slate-50 pt-2">
+          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-primary border-t border-outline-variant pt-2">
             <AlertCircle className="h-3.5 w-3.5" />
             <span>Requiring attention</span>
           </div>
         </div>
 
         {/* Resolved */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between text-left">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Resolved Issues</p>
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm flex flex-col justify-between text-left">
+          <p className="font-label-md text-on-surface-variant uppercase tracking-wider">Resolved Issues</p>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-extrabold text-emerald-600">{resolvedIssues}</span>
-            <span className="text-xs text-slate-400 font-medium">fixed</span>
+            <span className="font-headline-lg text-primary-container">{resolvedIssues}</span>
+            <span className="font-body-sm text-on-surface-variant">fixed</span>
           </div>
-          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-emerald-600 border-t border-slate-50 pt-2">
+          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-primary-container border-t border-outline-variant pt-2">
             <CheckCircle2 className="h-3.5 w-3.5" />
             <span>Remediation complete</span>
           </div>
         </div>
 
         {/* Escalated */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between text-left">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Escalated SLA</p>
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm flex flex-col justify-between text-left">
+          <p className="font-label-md text-on-surface-variant uppercase tracking-wider">Escalated SLA</p>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-extrabold text-rose-600">{escalatedIssues}</span>
-            <span className="text-xs text-slate-400 font-medium">breached</span>
+            <span className="font-headline-lg text-error">{escalatedIssues}</span>
+            <span className="font-body-sm text-on-surface-variant">breached</span>
           </div>
-          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-rose-500 border-t border-slate-50 pt-2">
+          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-error border-t border-outline-variant pt-2">
             <AlertTriangle className="h-3.5 w-3.5" />
             <span>Escalation Agent active</span>
           </div>
         </div>
 
         {/* Rate */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between text-left col-span-2 lg:col-span-1">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Resolution Rate</p>
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm flex flex-col justify-between text-left col-span-2 lg:col-span-1">
+          <p className="font-label-md text-on-surface-variant uppercase tracking-wider">Resolution Rate</p>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-extrabold text-teal-700">{resolutionRate}%</span>
-            <span className="text-xs text-slate-400 font-medium">efficiency</span>
+            <span className="font-headline-lg text-primary">{resolutionRate}%</span>
+            <span className="font-body-sm text-on-surface-variant">efficiency</span>
           </div>
-          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-teal-600 border-t border-slate-50 pt-2">
+          <div className="mt-3.5 flex items-center gap-1 text-[10px] font-semibold text-primary border-t border-outline-variant pt-2">
             <Shield className="h-3.5 w-3.5" />
             <span>Target: 95% threshold</span>
           </div>
@@ -185,8 +184,8 @@ export const Dashboard: React.FC = () => {
       {/* Visualizations Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         {/* Ward Comparison */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm lg:col-span-2 text-left">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm lg:col-span-2 text-left">
+          <h3 className="font-label-bold text-on-surface uppercase tracking-wider mb-4">
             Ward Performance Breakdown
           </h3>
           <div className="h-64">
@@ -206,7 +205,7 @@ export const Dashboard: React.FC = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex gap-4 items-center justify-center text-xs mt-3 text-slate-500 font-medium">
+          <div className="flex gap-4 items-center justify-center font-body-sm mt-3 text-on-surface-variant font-medium">
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-500"></span>Total Reports</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>Resolved</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>Escalated</span>
@@ -214,13 +213,13 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Category Breakdown (Pie) */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-left">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm text-left">
+          <h3 className="font-label-bold text-on-surface uppercase tracking-wider mb-4">
             Issue Category Distribution
           </h3>
           <div className="h-56 relative flex items-center justify-center">
             {categoryData.length === 0 ? (
-              <p className="text-slate-400 italic text-xs">No issues to display</p>
+              <p className="text-on-surface-variant italic font-body-sm">No issues to display</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -245,7 +244,7 @@ export const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             )}
           </div>
-          <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 justify-center text-[10px] mt-2 font-semibold text-slate-500">
+          <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 justify-center text-[10px] mt-2 font-semibold text-on-surface-variant">
             {categoryData.map((d, i) => (
               <span key={d.name} className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}></span>
@@ -257,14 +256,14 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Recent Issues Feed */}
-      <div className="text-left bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <div className="text-left bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+          <h3 className="font-label-bold text-on-surface uppercase tracking-wider">
             Recent Public Safety Reports
           </h3>
           <Link
             to="/map"
-            className="text-xs text-primary font-bold hover:underline flex items-center gap-1"
+            className="font-label-bold text-primary hover:underline flex items-center gap-1"
           >
             View Map Layout
             <ChevronRight className="h-4 w-4" />
@@ -272,7 +271,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {filteredIssues.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 italic text-sm border border-dashed border-slate-200 rounded-xl">
+          <div className="text-center py-12 text-on-surface-variant italic font-body-sm border border-dashed border-outline-variant rounded-xl">
             No reports matching the selected filters.
           </div>
         ) : (

@@ -1,38 +1,84 @@
 @import "tailwindcss";
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/container-queries";
 
 @theme {
-  --color-primary: #0F766E;
-  --color-primary-hover: #0D5E58;
-  --color-primary-light: #F0FDFA;
-  --color-secondary: #14B8A6;
-  --color-secondary-hover: #0D9488;
-  --color-background-dark: #0F172A;
-  --color-danger: #DC2626;
-  --color-danger-light: #FEF2F2;
-  --color-success: #16A34A;
-  --color-success-light: #F0FDF4;
-  --color-warning: #D97706;
-  --color-warning-light: #FEF3C7;
-  --color-info: #2563EB;
-  --color-info-light: #EFF6FF;
-  
-  --font-sans: 'Inter', sans-serif;
+  --color-inverse-primary: #80d8a9;
+  --color-secondary-fixed: #ffdfa0;
+  --color-on-surface-variant: #3f4942;
+  --color-on-surface: #1b1c1a;
+  --color-on-tertiary-fixed: #0d1c2e;
+  --color-surface-container-highest: #e4e2de;
+  --color-on-error-container: #93000a;
+  --color-primary: #00603d;
+  --color-on-primary-fixed-variant: #005234;
+  --color-tertiary: #465468;
+  --color-surface-bright: #fbf9f5;
+  --color-error-container: #ffdad6;
+  --color-on-primary: #ffffff;
+  --color-on-tertiary-fixed-variant: #3a485b;
+  --color-tertiary-container: #5e6c81;
+  --color-secondary: #795900;
+  --color-surface-container-low: #f5f3ef;
+  --color-surface-container-lowest: #ffffff;
+  --color-primary-fixed: #9cf5c4;
+  --color-on-primary-fixed: #002112;
+  --color-surface-tint: #006c46;
+  --color-inverse-on-surface: #f2f0ed;
+  --color-on-secondary-fixed: #261a00;
+  --color-primary-container: #1a7a52;
+  --color-on-secondary-fixed-variant: #5c4300;
+  --color-on-secondary-container: #6d5000;
+  --color-surface-dim: #dbdad6;
+  --color-on-primary-container: #acffd0;
+  --color-inverse-surface: #30312e;
+  --color-tertiary-fixed: #d5e3fc;
+  --color-background: #fbf9f5;
+  --color-surface-container-high: #eae8e4;
+  --color-surface: #fbf9f5;
+  --color-secondary-container: #ffbf00;
+  --color-primary-fixed-dim: #80d8a9;
+  --color-secondary-fixed-dim: #fbbc00;
+  --color-surface-variant: #e4e2de;
+  --color-on-background: #1b1c1a;
+  --color-outline: #6f7a72;
+  --color-on-tertiary: #ffffff;
+  --color-error: #ba1a1a;
+  --color-tertiary-fixed-dim: #b9c7df;
+  --color-outline-variant: #bec9c0;
+  --color-surface-container: #efeeea;
+  --color-on-error: #ffffff;
+  --color-on-secondary: #ffffff;
+  --color-on-tertiary-container: #e4edff;
+  --font-body-lg: 'Inter', sans-serif;
+  --font-body-sm: 'Inter', sans-serif;
+  --font-label-bold: 'Inter', sans-serif;
+  --font-body-md: 'Inter', sans-serif;
+  --font-label-md: 'Inter', sans-serif;
+  --font-headline-lg: 'Inter', sans-serif;
+  --font-headline-md: 'Inter', sans-serif;
+  --font-headline-lg-mobile: 'Inter', sans-serif;
 }
 
 body {
   margin: 0;
-  font-family: var(--font-sans);
-  background-color: #F8FAFC;
-  color: #0F172A;
+  font-family: var(--font-body-md);
+  background-color: var(--color-background);
+  color: var(--color-on-background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+.map-bg {
+  background-color: #f0ebd8;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
 /* Civic Theme Utilities */
 .government-banner {
-  border-top: 4px solid #0F766E;
+  border-top: 4px solid var(--color-primary);
 }
 
 .glass-card {
@@ -64,22 +110,4 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
-}
-
-/* Map specific styles */
-.map-marker-pulse {
-  position: relative;
-}
-
-.map-marker-pulse::after {
-  content: '';
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  top: -8px;
-  left: -8px;
-  border-radius: 50%;
-  background: rgba(20, 184, 166, 0.3);
-  animation: pulse-slow 2s infinite;
-  pointer-events: none;
 }

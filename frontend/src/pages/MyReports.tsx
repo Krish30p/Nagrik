@@ -34,152 +34,141 @@ export const MyReports: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] text-[#16241D] py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto text-left">
-        {/* Back navigation */}
+    <div className="min-h-[calc(100vh-64px)] bg-background text-on-surface font-body-md w-full max-w-5xl mx-auto px-4 md:px-8 py-8 flex-grow">
+      {/* Back navigation */}
+      <div className="mb-8">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-[#5B6B63] hover:text-[#1A7A52] mb-6 transition-colors duration-200"
+          className="inline-flex items-center gap-2 text-sm font-label-bold text-on-surface-variant hover:text-primary mb-6 transition-colors duration-200"
         >
           <ArrowLeft className="h-4 w-4" />
           Return to Map
         </Link>
+        <h1 className="font-headline-lg text-headline-lg text-on-surface mb-2">My Reports</h1>
+        <p className="font-body-lg text-body-lg text-on-surface-variant">Track the status of issues you've reported.</p>
+      </div>
 
-        {/* Header */}
-        <div className="border-b border-[#DCD4C2] pb-6 mb-8">
-          <span className="font-mono text-xs text-[#1A7A52] tracking-wider uppercase">
-            Citizen Action Portal
-          </span>
-          <h1 className="text-3xl md:text-4xl font-serif font-medium mt-2 text-[#0F3D2E]">
-            My Incident Reports
-          </h1>
-          <p className="text-sm text-[#5B6B63] mt-2 font-serif italic">
-            Immutable tracking record of your civic submissions and their current remediation status.
-          </p>
+      {reports.length === 0 ? (
+        <div className="mt-16 flex flex-col items-center text-center max-w-md mx-auto py-12 border-t border-outline-variant border-dashed">
+          <FileText className="h-24 w-24 text-outline-variant mb-6" />
+          <h2 className="font-headline-md text-headline-md text-on-surface mb-2">No reports found</h2>
+          <p className="font-body-md text-body-md text-on-surface-variant mb-8">Start by reporting a new issue in your area.</p>
+          <Link
+            to="/report"
+            className="bg-primary-container text-on-primary font-label-bold text-label-bold px-8 py-3 rounded-lg hover:bg-primary transition-colors h-12 flex items-center justify-center w-full sm:w-auto"
+          >
+            Report Your First Issue
+          </Link>
         </div>
-
-        {reports.length === 0 ? (
-          <div className="bg-[#EFE9DC] border border-[#DCD4C2] rounded-xl p-12 text-center shadow-sm">
-            <FileText className="h-12 w-12 text-[#5B6B63] mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-serif font-semibold text-[#0F3D2E]">
-              No Reports Filed Yet
-            </h3>
-            <p className="text-sm text-[#5B6B63] mt-2 max-w-md mx-auto">
-              Your report history is empty. Be the first to report a broken streetlight, pothole, or garbage dump in your ward.
-            </p>
-            <Link
-              to="/report"
-              className="inline-block mt-6 bg-[#1A7A52] hover:bg-[#0F3D2E] text-[#FAF8F4] text-xs font-bold px-6 py-3 rounded-lg shadow-sm transition-all duration-200 uppercase tracking-wider"
-            >
-              Report First Issue
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {reports.map((report) => {
-              const issue = report.issue;
-              const hasLinkedIssue = !!issue;
-              
-              // Status Badge config mapping
-              let statusText = "Pending Analysis";
-              let badgeColor = "bg-slate-100 text-slate-700 border-slate-200";
-              
-              if (report.processingStatus === "failed") {
-                statusText = "Analysis Failed";
-                badgeColor = "bg-rose-50 text-rose-700 border-rose-100";
-              } else if (hasLinkedIssue) {
-                if (issue.status === "REPORTED") {
-                  statusText = "Verifying";
-                  badgeColor = "bg-slate-100 text-[#5B6B63] border-[#DCD4C2]";
-                } else if (issue.status === "ROUTED") {
-                  statusText = "Routed";
-                  badgeColor = "bg-teal-50 text-[#1A7A52] border-teal-200";
-                } else if (issue.status === "IN_PROGRESS") {
-                  statusText = "In Progress";
-                  badgeColor = "bg-amber-50 text-[#C8932B] border-amber-200";
-                } else if (issue.status === "ESCALATED") {
-                  statusText = "Escalated";
-                  badgeColor = "bg-rose-50 text-[#B5562C] border-rose-200";
-                } else if (issue.status === "RESOLVED") {
-                  statusText = "Resolved";
-                  badgeColor = "bg-emerald-50 text-[#0F3D2E] border-emerald-200";
-                }
+      ) : (
+        <div className="space-y-4">
+          {reports.map((report) => {
+            const issue = report.issue;
+            const hasLinkedIssue = !!issue;
+            
+            // Status Badge config mapping
+            let statusText = "Pending Analysis";
+            let statusClasses = "text-on-surface-variant";
+            
+            if (report.processingStatus === "failed") {
+              statusText = "Analysis Failed";
+              statusClasses = "text-error";
+            } else if (hasLinkedIssue) {
+              if (issue.status === "REPORTED") {
+                statusText = "REPORTED";
+                statusClasses = "text-on-surface-variant";
+              } else if (issue.status === "ROUTED") {
+                statusText = "ROUTED";
+                statusClasses = "text-primary";
+              } else if (issue.status === "IN_PROGRESS") {
+                statusText = "IN PROGRESS";
+                statusClasses = "text-secondary";
+              } else if (issue.status === "ESCALATED") {
+                statusText = "ESCALATED";
+                statusClasses = "text-error";
+              } else if (issue.status === "RESOLVED") {
+                statusText = "RESOLVED";
+                statusClasses = "text-primary-container";
               }
+            }
 
-              return (
-                <div
-                  key={report.id}
-                  className="bg-[#EFE9DC] border border-[#DCD4C2] rounded-lg p-5 flex flex-col md:flex-row gap-5 shadow-sm hover:shadow-md transition-shadow duration-200"
-                >
-                  {/* Media Thumbnail */}
-                  <div className="w-full md:w-32 h-32 rounded-md overflow-hidden bg-[#FAF8F4] flex-shrink-0 border border-[#DCD4C2] relative">
-                    {report.rawMediaUrl ? (
-                      <img
-                        src={report.rawMediaUrl}
-                        alt="Submitted evidence"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs font-mono text-[#5B6B63]">
-                        NO IMAGE
-                      </div>
-                    )}
-                  </div>
+            return (
+              <div
+                key={report.id}
+                className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col sm:flex-row gap-4 hover:border-primary transition-colors group text-left relative"
+              >
+                {/* Media Thumbnail */}
+                <div className="w-full sm:w-32 h-32 rounded-lg overflow-hidden shrink-0 bg-surface-container relative">
+                  {report.rawMediaUrl ? (
+                    <img
+                      src={report.rawMediaUrl}
+                      alt="Submitted evidence"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs font-mono text-outline-variant">
+                      NO IMAGE
+                    </div>
+                  )}
+                  {report.issueId && report.issueId !== issue?.id && (
+                    <div className="absolute inset-0 bg-surface/50 backdrop-blur-sm flex items-center justify-center">
+                      <span className="bg-primary-container text-on-primary-container text-[10px] font-bold px-2 py-1 rounded shadow-sm flex items-center gap-1 uppercase tracking-wider">
+                        <Merge className="h-3 w-3" />
+                        Merged
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-                  {/* Content details */}
-                  <div className="flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase border tracking-wider ${badgeColor}`}>
-                            {statusText}
-                          </span>
-                          {report.issueId && report.issueId !== issue?.id && (
-                            <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-                              <Merge className="h-3 w-3" />
-                              Merged
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 text-[#5B6B63] font-mono text-[11px]">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>{new Date(report.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-
-                      <h3 className="text-base font-serif font-bold text-[#0F3D2E] leading-tight">
+                {/* Content details */}
+                <div className="flex flex-col justify-between flex-grow">
+                  <div>
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-headline-md text-headline-md text-on-surface line-clamp-1 group-hover:text-primary transition-colors">
                         {issue?.title || report.userTextNote || "Incident Report Under Analysis"}
                       </h3>
-                      
-                      <p className="text-xs text-[#5B6B63] mt-2 line-clamp-2">
-                        {issue?.description || report.userTextNote || "Our autonomous Intake Agent is currently inspecting the submitted details and coordinates to classify and assign this ticket."}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-[#DCD4C2]/40 flex flex-wrap justify-between items-center gap-4">
-                      <div className="flex items-center gap-1.5 text-xs text-[#5B6B63]">
-                        <MapPin className="h-3.5 w-3.5 text-[#1A7A52]" />
-                        <span>
-                          [{report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}]
-                        </span>
-                      </div>
-                      
                       {hasLinkedIssue && (
-                        <Link
-                          to={`/issues/${issue.id}`}
-                          className="bg-[#1A7A52] hover:bg-[#0F3D2E] text-[#FAF8F4] text-[11px] font-bold px-4.5 py-2 rounded transition-colors duration-200 uppercase tracking-wider"
-                        >
-                          Inspect Thread
-                        </Link>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                          issue.severity === 'CRITICAL' || issue.severity === 'HIGH' ? 'bg-error-container text-on-error-container' : 'bg-surface-container text-on-surface-variant'
+                        }`}>
+                          {issue.severity}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {hasLinkedIssue && (
+                        <span className="inline-flex items-center px-2 py-1 rounded bg-surface-container text-on-surface-variant font-label-md text-label-md">
+                          {issue.category}
+                        </span>
                       )}
                     </div>
                   </div>
+
+                  <div>
+                    <div className="flex items-center gap-4 mb-2">
+                      <span className={`font-label-bold text-label-bold ${statusClasses}`}>
+                        {statusText}
+                      </span>
+                      {hasLinkedIssue && (
+                        <Link
+                          to={`/issues/${issue.id}`}
+                          className="ml-auto bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md px-3 py-1.5 rounded transition-colors text-xs flex items-center gap-1"
+                        >
+                          View Details
+                        </Link>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm">
+                      <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {new Date(report.createdAt).toLocaleDateString()}</span>
+                      <span className="flex items-center gap-1 line-clamp-1"><MapPin className="h-4 w-4" /> [{report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}]</span>
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

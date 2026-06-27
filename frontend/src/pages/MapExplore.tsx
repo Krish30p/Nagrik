@@ -49,19 +49,19 @@ export const MapExplore: React.FC = () => {
   });
 
   const getSeverityColor = (severity: Severity) => {
-    if (severity === "LOW") return "#16A34A"; // Green
-    if (severity === "MEDIUM") return "#2563EB"; // Blue
-    if (severity === "HIGH") return "#D97706"; // Amber
-    return "#DC2626"; // Red
+    if (severity === "LOW") return "#1a7a52"; // primary-container
+    if (severity === "MEDIUM") return "#ffbf00"; // secondary-container
+    if (severity === "HIGH") return "#fbbc00"; // secondary-fixed-dim
+    return "#ba1a1a"; // error
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-6 h-[calc(100vh-130px)] min-h-[500px]">
       {/* Filters Sidebar */}
-      <div className="w-full lg:w-72 shrink-0 bg-white border border-slate-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm text-left h-fit lg:h-full overflow-y-auto">
-        <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
+      <div className="w-full lg:w-72 shrink-0 bg-surface border border-outline-variant rounded-xl p-5 flex flex-col gap-4 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] text-left h-fit lg:h-full overflow-y-auto">
+        <div className="flex items-center gap-2 border-b border-outline-variant pb-3 mb-1">
           <Filter className="h-4.5 w-4.5 text-primary" />
-          <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Map Filters</h2>
+          <h2 className="text-sm font-bold text-on-surface uppercase tracking-wider">Map Filters</h2>
         </div>
 
         {/* Category */}
@@ -153,15 +153,15 @@ export const MapExplore: React.FC = () => {
       </div>
 
       {/* Main Map Box */}
-      <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl relative flex flex-col shadow-sm overflow-hidden h-full">
+      <div className="flex-1 bg-surface border border-outline-variant rounded-xl relative flex flex-col shadow-sm overflow-hidden h-full">
         {/* Map Header */}
-        <div className="bg-white border-b border-slate-200 py-3 px-4 flex justify-between items-center text-left">
+        <div className="bg-surface-bright border-b border-outline-variant py-3 px-4 flex justify-between items-center text-left">
           <div>
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-on-surface flex items-center gap-1.5">
               <Navigation className="h-4 w-4 text-primary" />
               Live City GIS View
             </h3>
-            <p className="text-[10px] text-slate-400">Displaying {filteredIssues.length} active infrastructure tickets</p>
+            <p className="text-[10px] text-on-surface-variant">Displaying {filteredIssues.length} active infrastructure tickets</p>
           </div>
           <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
@@ -170,7 +170,7 @@ export const MapExplore: React.FC = () => {
         </div>
 
         {/* Interactive SVG Map */}
-        <div className="flex-1 relative bg-teal-50/10 select-none overflow-hidden flex items-center justify-center">
+        <div className="flex-1 relative map-bg select-none overflow-hidden flex items-center justify-center">
           <svg
             viewBox="0 0 600 480"
             className="w-full h-full max-w-[650px] max-h-[500px]"
@@ -272,22 +272,22 @@ export const MapExplore: React.FC = () => {
 
           {/* Issue Floating Mini-Card */}
           {selectedIssue && (
-            <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white border border-slate-200 rounded-xl shadow-xl p-4 z-10 text-left transition-all duration-200">
+            <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-surface border border-outline-variant rounded-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] p-4 z-10 text-left transition-all duration-200">
               <div className="flex justify-between items-start gap-2 mb-2">
-                <span className="text-[9px] uppercase font-bold text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10">
+                <span className="text-[10px] uppercase font-bold text-primary bg-primary-container/10 px-2 py-0.5 rounded border border-primary/20">
                   {selectedIssue.category}
                 </span>
                 <button
                   onClick={() => setSelectedIssue(null)}
-                  className="text-xs text-slate-400 hover:text-slate-600 font-bold px-1.5"
+                  className="text-xs text-on-surface-variant hover:text-on-surface font-bold px-1.5"
                 >
                   ✕
                 </button>
               </div>
-              <h4 className="text-xs font-bold text-slate-800 line-clamp-1 mb-1">
+              <h4 className="text-sm font-bold text-on-surface line-clamp-1 mb-1">
                 {selectedIssue.title}
               </h4>
-              <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-3">
+              <p className="text-xs text-on-surface-variant line-clamp-2 leading-relaxed mb-3">
                 {selectedIssue.description}
               </p>
               <div className="flex items-center gap-1 text-[10px] text-slate-400 mb-3">

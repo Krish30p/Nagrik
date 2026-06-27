@@ -314,78 +314,42 @@ export const ReportIssue: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden text-left">
-        <div className="government-banner"></div>
-        <div className="p-6 md:p-8">
-          <h2 className="text-xl font-bold tracking-tight text-slate-800 mb-2">
-            Log Civic Incident Report
-          </h2>
-          <p className="text-xs text-slate-400 mb-6">
-            Citizen reports are logged and routed to corresponding city departments autonomously.
-          </p>
+      <div className="bg-surface border border-outline-variant rounded-2xl shadow-sm overflow-hidden text-left flex flex-col">
+        {/* Progress Bar Header */}
+        <div className="bg-surface-bright border-b border-outline-variant px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-bold text-label-bold">1</div>
+            <span className="font-label-bold text-label-bold text-on-surface hidden md:inline">Report Details</span>
+          </div>
+          <div className="flex-grow max-w-[40px] md:max-w-[100px] h-px bg-outline-variant mx-4"></div>
+          <div className="flex items-center gap-2 opacity-50">
+            <div className="w-8 h-8 rounded-full border border-outline-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">2</div>
+            <span className="font-label-bold text-label-bold text-on-surface-variant hidden md:inline">Location</span>
+          </div>
+          <div className="flex-grow max-w-[40px] md:max-w-[100px] h-px bg-outline-variant mx-4"></div>
+          <div className="flex items-center gap-2 opacity-50">
+            <div className="w-8 h-8 rounded-full border border-outline-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">3</div>
+            <span className="font-label-bold text-label-bold text-on-surface-variant hidden md:inline">Review</span>
+          </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Description */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Issue Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe the issue, defect, or safety concern. (e.g. Large pothole on main road lane 4 opposite the central park gate...)"
-                rows={4}
-                required
-                className="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed"
-              />
-            </div>
-
-            {/* Voice Notes Input */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700">Audio Voice Note (Optional)</label>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={isRecording ? stopRecording : startRecording}
-                  disabled={isUploading}
-                  className={`py-2 px-3.5 border rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-                    isRecording
-                      ? "bg-red-50 border-red-200 text-red-600 animate-pulse"
-                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  <Mic className="h-4 w-4" />
-                  {isRecording ? "Stop Recording" : "Record Voice Note"}
-                </button>
-                {voiceNoteUrl && (
-                  <span className="text-[10px] text-green-600 bg-green-50 border border-green-100 px-2.5 py-1 rounded-full font-bold">
-                    Voice Note Added
-                  </span>
-                )}
-                {isUploading && (
-                  <span className="text-[10px] text-slate-400 animate-pulse font-bold">
-                    Uploading Audio to GridFS...
-                  </span>
-                )}
-              </div>
-              {voiceText && (
-                <p className="text-[11px] text-slate-500 italic bg-slate-50 border border-slate-100 rounded-lg p-2.5 leading-relaxed">
-                  &ldquo;{voiceText}&rdquo;
-                </p>
-              )}
-            </div>
-
-            {/* Photo / Video upload input */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Report Photo / Video (GridFS Media)</label>
-              <div className="flex gap-2.5 items-center">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
-                >
-                  <ImageIcon className="h-4 w-4" />
-                  Select File / Camera
-                </button>
+        <form onSubmit={handleSubmit} className="p-6 md:p-8 flex flex-col gap-8">
+          {/* 1. Evidence Capture */}
+          <section>
+            <h2 className="font-headline-md text-headline-md text-on-surface mb-2">Evidence Capture</h2>
+            <p className="font-body-sm text-body-sm text-on-surface-variant mb-4">Provide clear photos or videos of the issue.</p>
+            
+            {!imageUrl ? (
+              <div 
+                className="border-2 border-dashed border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container-low hover:border-primary transition-colors cursor-pointer flex flex-col items-center justify-center py-12 px-4 group"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center mb-4 group-hover:bg-primary-container group-hover:text-on-primary-container transition-colors">
+                  <ImageIcon className="h-8 w-8 text-on-surface-variant group-hover:text-on-primary-container" />
+                </div>
+                <p className="font-body-md text-body-md text-on-surface font-medium text-center">Click to upload evidence</p>
+                <p className="font-body-sm text-body-sm text-on-surface-variant text-center mt-2">JPG, PNG, MP4 up to 50MB</p>
+                
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -394,92 +358,146 @@ export const ReportIssue: React.FC = () => {
                   capture="environment"
                   className="hidden"
                 />
-                {isUploading && (
-                  <span className="text-[10px] text-slate-400 animate-pulse font-bold">
-                    Uploading Media to GridFS...
-                  </span>
+              </div>
+            ) : (
+              <div className="relative max-h-64 overflow-hidden rounded-xl border border-outline-variant">
+                <button
+                  type="button"
+                  onClick={() => setImageUrl("")}
+                  className="absolute top-3 right-3 bg-inverse-surface/70 text-inverse-on-surface hover:bg-inverse-surface rounded-full p-1.5 transition-all z-10"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                {imageUrl.includes(".mp4") || imageUrl.includes("video") ? (
+                  <video src={imageUrl} controls className="w-full h-full object-cover max-h-64" />
+                ) : (
+                  <img src={imageUrl} alt="Incident preview" className="w-full h-64 object-cover" />
                 )}
               </div>
-              {imageUrl && (
-                <div className="mt-2.5 relative max-h-48 overflow-hidden rounded-xl border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl("")}
-                    className="absolute top-2 right-2 bg-slate-900/60 text-white hover:bg-slate-900 rounded-full p-1 transition-all"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  {imageUrl.includes(".mp4") || imageUrl.includes("video") ? (
-                    <video src={imageUrl} controls className="w-full h-full object-cover max-h-48" />
-                  ) : (
-                    <img src={imageUrl} alt="Incident preview" className="w-full h-full object-cover" />
-                  )}
+            )}
+            {isUploading && (
+              <p className="text-[10px] text-primary animate-pulse font-bold mt-2">Uploading Media to GridFS...</p>
+            )}
+          </section>
+
+          {/* 2. Voice Note */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-headline-md text-headline-md text-on-surface">Voice Note <span className="font-body-sm text-body-sm text-on-surface-variant font-normal">(Optional)</span></h2>
+            </div>
+            <div className="border border-outline-variant rounded-lg p-4 flex flex-col gap-3 bg-surface-container-lowest">
+              <div className="flex items-center gap-4">
+                <button 
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isUploading}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
+                    isRecording ? 'bg-error-container text-on-error-container animate-pulse' : 'bg-surface-container hover:bg-surface-variant text-on-surface-variant'
+                  }`}
+                >
+                  <Mic className="h-6 w-6" />
+                </button>
+                <div className="flex-grow flex items-center gap-2">
+                  <div className="h-2 flex-grow bg-surface-variant rounded-full overflow-hidden">
+                    {isRecording && <div className="h-full bg-primary animate-pulse w-full"></div>}
+                  </div>
+                  <span className="font-label-md text-label-md text-on-surface-variant">
+                    {isRecording ? "Recording..." : (voiceNoteUrl ? "Recorded" : "00:00")}
+                  </span>
+                </div>
+              </div>
+              
+              {voiceText && (
+                <div className="bg-surface-container-low p-3 rounded-lg border border-outline-variant">
+                  <p className="text-[11px] text-on-surface-variant italic leading-relaxed">
+                    &ldquo;{voiceText}&rdquo;
+                  </p>
                 </div>
               )}
             </div>
+          </section>
 
-            {/* Coordinates and Geolocation */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Latitude</label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={latitude}
-                  onChange={(e) => setLatitude(parseFloat(e.target.value))}
-                  required
-                  className="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+          {/* 3. Location & Details */}
+          <section>
+            <h2 className="font-headline-md text-headline-md text-on-surface mb-2">Location & Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="border border-outline-variant rounded-lg overflow-hidden flex flex-col">
+                <div className="h-32 w-full relative map-bg">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <Navigation className="text-primary drop-shadow-md h-8 w-8" />
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={handleGPSAttach}
+                    className="absolute bottom-2 right-2 bg-surface-container-lowest border border-outline-variant rounded-md px-2 py-1.5 flex items-center gap-1.5 shadow-sm hover:bg-surface-container-low transition-colors"
+                  >
+                    <Navigation className="h-3.5 w-3.5 text-primary" />
+                    <span className="font-label-md text-label-md">Auto GPS</span>
+                  </button>
+                </div>
+                <div className="p-3 bg-surface-container-lowest border-t border-outline-variant flex items-center gap-3">
+                  <Navigation className="h-4 w-4 text-on-surface-variant" />
+                  <div className="flex-grow flex gap-2">
+                    <input
+                      type="number" step="0.000001"
+                      value={latitude} onChange={(e) => setLatitude(parseFloat(e.target.value))}
+                      className="w-1/2 bg-transparent border-none p-0 focus:ring-0 font-body-sm text-body-sm text-on-surface outline-none"
+                    />
+                    <input
+                      type="number" step="0.000001"
+                      value={longitude} onChange={(e) => setLongitude(parseFloat(e.target.value))}
+                      className="w-1/2 bg-transparent border-none p-0 focus:ring-0 font-body-sm text-body-sm text-on-surface outline-none"
+                    />
+                  </div>
+                </div>
               </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Longitude</label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={longitude}
-                  onChange={(e) => setLongitude(parseFloat(e.target.value))}
-                  required
-                  className="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Target Ward</label>
-                <select
-                  value={ward}
-                  onChange={(e) => setWard(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="Ward 1">Ward 1</option>
-                  <option value="Ward 2">Ward 2</option>
-                  <option value="Ward 3">Ward 3</option>
-                  <option value="Ward 4">Ward 4</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col justify-end">
-                <button
-                  type="button"
-                  onClick={handleGPSAttach}
-                  className="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                >
-                  <Navigation className="h-4 w-4" />
-                  Auto GPS
-                </button>
+              
+              <div className="flex flex-col gap-3">
+                <div className="flex-grow">
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe the issue..."
+                    rows={4}
+                    required
+                    className="w-full h-full min-h-[100px] border border-outline-variant rounded-lg p-3 font-body-md text-body-md bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none transition-colors"
+                  ></textarea>
+                </div>
+                <div>
+                  <select
+                    value={ward}
+                    onChange={(e) => setWard(e.target.value)}
+                    className="w-full bg-surface-container-lowest border border-outline-variant text-on-surface text-sm rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="Ward 1">Ward 1</option>
+                    <option value="Ward 2">Ward 2</option>
+                    <option value="Ward 3">Ward 3</option>
+                    <option value="Ward 4">Ward 4</option>
+                  </select>
+                </div>
               </div>
             </div>
+          </section>
 
-            <button
+          {/* Action Bar */}
+          <div className="-mx-6 md:-mx-8 -mb-6 md:-mb-8 border-t border-outline-variant bg-surface-container-low/50 p-6 flex items-center justify-between mt-4">
+            <button 
+              type="button"
+              onClick={() => navigate("/")}
+              className="px-6 py-3 rounded-lg font-label-bold text-label-bold text-on-surface-variant hover:bg-surface-variant transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
               type="submit"
               disabled={isUploading}
-              className="w-full bg-primary hover:bg-primary-hover disabled:bg-slate-300 text-white text-sm font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md transition-all border border-teal-700/25"
+              className="px-6 py-3 rounded-lg font-label-bold text-label-bold bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2 disabled:bg-surface-variant disabled:text-on-surface-variant"
             >
+              Submit Report
               <Send className="h-4 w-4" />
-              Dispatch Incident Report to AI Agents
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );
