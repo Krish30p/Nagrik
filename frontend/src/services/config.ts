@@ -5,8 +5,9 @@ export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/ap
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
-// Default to mock mode (true) unless the user explicitly toggles it to false (MongoDB server mode)
-export const USE_MOCK_SERVICES = localStorage.getItem("nagrik_use_mock") !== "false";
+// Force MongoDB server mode (disable mock mode)
+export const USE_MOCK_SERVICES = false;
+
 
 if (!GOOGLE_MAPS_API_KEY) {
   console.warn("[Nagrik Config] VITE_GOOGLE_MAPS_API_KEY is not set — map features will be limited.");

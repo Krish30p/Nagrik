@@ -10,7 +10,7 @@ export const Leaderboard: React.FC = () => {
 
   useEffect(() => {
     const loadUsers = async () => {
-      const USE_MOCK = localStorage.getItem("nagrik_use_mock") !== "false";
+      const USE_MOCK = false;
       if (USE_MOCK) {
         const mockUsers = JSON.parse(localStorage.getItem("nagrik_mock_users") || "[]") as User[];
         const sorted = mockUsers.sort((a: User, b: User) => b.points - a.points);
