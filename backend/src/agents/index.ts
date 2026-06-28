@@ -1,9 +1,38 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { User, Report, Issue, Department, AgentLog, Config, SimulationState, Notification } from "../models";
 import mongoose from "mongoose";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const NVIDIA_API_KEY = process.env.GEMINI_API_KEY || "";
+
+async function callNvidiaNIM(promptText: string): Promise<string> {
+  if (!NVIDIA_API_KEY) throw new Error("NVIDIA_API_KEY is not set.");
+  const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${NVIDIA_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "meta/llama-3.1-70b-instruct",
+      messages: [{ role: "user", content: promptText }]
+    })
+  });
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Nvidia API error: ${response.status} ${errText}`);
+  }
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+function parseJson(text: string): any {
+  try {
+    const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(cleaned);
+  } catch (e) {
+    console.error("Failed to parse JSON:", text);
+    throw e;
+  }
+}
 
 // ==========================================
 // SHARED AGENT HELPERS
@@ -80,33 +109,8 @@ export const intakeAgent = {
     let success = false;
     let errorMessage: string | null = null;
 
-    if (genAI) {
+    if (NVIDIA_API_KEY) {
       try {
-        const model = genAI.getGenerativeModel({
-          model: "gemini-2.0-flash",
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: SchemaType.OBJECT,
-              properties: {
-                category: { type: SchemaType.STRING, enum: ["pothole", "water_leak", "streetlight", "garbage", "drainage", "road_damage", "other"] },
-                severity: { type: SchemaType.STRING, enum: ["low", "moderate", "high", "critical"] },
-                title: { type: SchemaType.STRING },
-                description: { type: SchemaType.STRING }
-              },
-              required: ["category", "severity", "title", "description"]
-            }
-          }
-        });
-
-        // Multimodal call (using download URL or fetching gridfs data if possible, for local sandbox, download url is passed)
-        // Since we are running locally, we can download the file from our own server or simulate image bytes
-        let mediaPart = { text: "Analyze report attachment." };
-        if (report.rawMediaUrl) {
-          // If the file is hosted in GridFS, we can grab it. But for the prompt, we can pass text notes
-          // In full production, we would stream GridFS bytes. For this build, we pass report information.
-        }
-
         const promptText = `
           You are a civic infrastructure inspector AI. You will be shown details of a 
           potential public infrastructure issue (such as a pothole, water leak, broken 
@@ -129,11 +133,15 @@ export const intakeAgent = {
           Media type: "${report.mediaType}"
 
           Classify this issue and respond ONLY in the required JSON structure.
+          The JSON must have the following keys:
+          - "category": one of ["pothole", "water_leak", "streetlight", "garbage", "drainage", "road_damage", "other"]
+          - "severity": one of ["low", "moderate", "high", "critical"]
+          - "title": string
+          - "description": string
         `;
 
-        const result = await model.generateContent([promptText]);
-        const responseText = result.response.text().trim();
-        const parsed = JSON.parse(responseText);
+        const responseText = await callNvidiaNIM(promptText);
+        const parsed = parseJson(responseText);
 
         category = parsed.category;
         severity = parsed.severity;
@@ -296,24 +304,8 @@ export const verificationAgent = {
       
       const hoursApart = Math.abs(issue.createdAt.getTime() - candidate.createdAt.getTime()) / (3600 * 1000);
 
-      if (genAI) {
+      if (NVIDIA_API_KEY) {
         try {
-          const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-            generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: SchemaType.OBJECT,
-                properties: {
-                  isSameIssue: { type: SchemaType.BOOLEAN },
-                  confidence: { type: SchemaType.NUMBER },
-                  reasoning: { type: SchemaType.STRING }
-                },
-                required: ["isSameIssue", "confidence", "reasoning"]
-              }
-            }
-          });
-
           const promptText = `
             You are comparing two citizen reports of civic infrastructure issues to 
             determine if they describe the SAME real-world problem (e.g., the same 
@@ -327,11 +319,14 @@ export const verificationAgent = {
             Time between reports: ${hoursApart.toFixed(1)} hours
 
             Respond ONLY in the required JSON structure with your judgment.
+            The JSON must have the following keys:
+            - "isSameIssue": boolean
+            - "confidence": number (0 to 1)
+            - "reasoning": string
           `;
 
-          const result = await model.generateContent([promptText]);
-          const responseText = result.response.text().trim();
-          const parsed = JSON.parse(responseText);
+          const responseText = await callNvidiaNIM(promptText);
+          const parsed = parseJson(responseText);
 
           if (parsed.isSameIssue && parsed.confidence >= 0.6) {
             matchedIssue = candidate;
@@ -468,9 +463,8 @@ export const routingAgent = {
     let success = false;
     let errorMessage: string | null = null;
 
-    if (genAI && department) {
+    if (NVIDIA_API_KEY && department) {
       try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const promptText = `
           You are drafting a formal civic complaint on behalf of citizens, to be sent to 
           a municipal department. Use a professional, respectful, factual tone. Do not 
@@ -495,11 +489,10 @@ export const routingAgent = {
           - Citizens confirming this issue: ${issue.confirmationCount}
           - Department: ${deptName}
 
-          Write the complete complaint document now.
+          Write the complete complaint document now. Do not wrap in quotes or codeblocks, just the plain text.
         `;
 
-        const result = await model.generateContent([promptText]);
-        complaintText = result.response.text().trim();
+        complaintText = await callNvidiaNIM(promptText);
         success = true;
       } catch (err: any) {
         errorMessage = err.message || "Gemini drafting failed";
@@ -581,9 +574,8 @@ export const escalationAgent = {
       let success = false;
       let errorMessage: string | null = null;
 
-      if (genAI) {
+      if (NVIDIA_API_KEY) {
         try {
-          const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
           const promptText = `
             You are drafting a follow-up escalation notice on behalf of citizens, because 
             a previously filed civic complaint has not been resolved within the expected 
@@ -608,11 +600,10 @@ export const escalationAgent = {
             - Time elapsed since deadline: ${hoursOverdue.toFixed(1)} hours
             - Current confirmation count: ${issue.confirmationCount}
 
-            Write the complete escalation notice now.
+            Write the complete escalation notice now. Do not wrap in quotes or codeblocks, just the plain text.
           `;
 
-          const result = await model.generateContent([promptText]);
-          noticeText = result.response.text().trim();
+          noticeText = await callNvidiaNIM(promptText);
           success = true;
         } catch (err: any) {
           errorMessage = err.message || "Gemini notice draft failed";
