@@ -3,25 +3,40 @@ import mongoose from "mongoose";
 
 const NVIDIA_API_KEY = process.env.GEMINI_API_KEY || "";
 
+let requestQueue: Promise<any> = Promise.resolve();
+
 async function callNvidiaNIM(promptText: string): Promise<string> {
   if (!NVIDIA_API_KEY) throw new Error("NVIDIA_API_KEY is not set.");
-  const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${NVIDIA_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "meta/llama-3.1-70b-instruct",
-      messages: [{ role: "user", content: promptText }]
-    })
+
+  // Chain the request to the queue to ensure sequential execution and rate spacing
+  const result = requestQueue.then(async () => {
+    console.log("[Nvidia NIM Queue] Waiting 2 seconds to space out API requests...");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    console.log("[Nvidia NIM Queue] Sending request to Nvidia API...");
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${NVIDIA_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "meta/llama-3.1-70b-instruct",
+        messages: [{ role: "user", content: promptText }]
+      })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Nvidia API error: ${response.status} ${errText}`);
+    }
+    const data = await response.json();
+    return data.choices[0].message.content;
   });
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Nvidia API error: ${response.status} ${errText}`);
-  }
-  const data = await response.json();
-  return data.choices[0].message.content;
+
+  // Keep the queue moving even if this request fails
+  requestQueue = result.catch(() => {});
+
+  return result;
 }
 
 function parseJson(text: string): any {
