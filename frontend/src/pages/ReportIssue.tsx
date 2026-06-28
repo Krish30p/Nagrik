@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { dbService } from "../services/db";
 import { authService } from "../services/auth";
 import { Image as ImageIcon, Mic, Sparkles, Navigation, Send, CheckCircle2, X } from "lucide-react";
+import { API_URL } from "../services/config";
 
 type SpeechRecognitionConstructor = new () => {
   continuous: boolean;
@@ -138,7 +139,7 @@ export const ReportIssue: React.FC = () => {
       setIsRecording(true);
       setTimeout(() => {
         setVoiceText("Priority road defect: Severe pothole reported right next to the public school gate.");
-        setVoiceNoteUrl("http://localhost:5000/api/media/mock-voice-id");
+        setVoiceNoteUrl(`${API_URL}/media/mock-voice-id`);
         setIsRecording(false);
       }, 1500);
     }
