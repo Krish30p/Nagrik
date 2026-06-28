@@ -70,12 +70,13 @@ async function runSeed() {
     }
     console.log(`[Seeder] Seeded ${deptsCreated} new departments.`);
 
+    const salt = await bcrypt.genSalt(10);
+
     // Pre-create staff account
-    const staffEmail = "staff@nagrik.gov";
+    const staffEmail = "admin@nagrik.gov.in";
     let staffUser = await User.findOne({ authUserId: staffEmail });
     if (!staffUser) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash("password123", salt);
+      const hashedPassword = await bcrypt.hash("password", salt);
       staffUser = await User.create({
         authUserId: staffEmail,
         displayName: "Municipal Staff Officer",
@@ -83,9 +84,26 @@ async function runSeed() {
         authProvider: "email",
         fcmToken: hashedPassword
       });
-      console.log(`[Seeder] Pre-provisioned staff account: ${staffEmail} (password: password123)`);
+      console.log(`[Seeder] Pre-provisioned staff account: ${staffEmail} (password: password)`);
     } else {
       console.log(`[Seeder] Staff account already exists: ${staffEmail}`);
+    }
+
+    // Pre-create citizen account
+    const citizenEmail = "aarav@gmail.com";
+    let citizenUser = await User.findOne({ authUserId: citizenEmail });
+    if (!citizenUser) {
+      const hashedPassword = await bcrypt.hash("password", salt);
+      citizenUser = await User.create({
+        authUserId: citizenEmail,
+        displayName: "Aarav Sharma",
+        role: "citizen",
+        authProvider: "email",
+        fcmToken: hashedPassword
+      });
+      console.log(`[Seeder] Pre-provisioned citizen account: ${citizenEmail} (password: password)`);
+    } else {
+      console.log(`[Seeder] Citizen account already exists: ${citizenEmail}`);
     }
 
     console.log("[Seeder] Database seeding completed successfully!");

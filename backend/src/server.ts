@@ -84,7 +84,7 @@ mongoose.connection.once("open", () => {
       console.warn("[MongoDB] Change stream error on 'issues' (likely standalone server). Native Change Streams disabled for 'issues'.");
     });
 
-    const logsStream = mongoose.connection.collection("agent_logs").watch();
+    const logsStream = mongoose.connection.collection("agentlogs").watch();
     logsStream.on("change", (change) => {
       console.log("[Change Stream] Broadcast change in agent_logs collection");
       broadcastEvent({ collection: "agent_logs", type: "change" });
@@ -149,7 +149,8 @@ function mapIssueToFrontend(issue: any) {
   else if (data.category === "other") category = "Critical Infrastructure";
 
   // Severity mapping
-  const severity: string = (data.severity || "moderate").toUpperCase();
+  let severity: string = (data.severity || "moderate").toUpperCase();
+  if (severity === "MODERATE") severity = "MEDIUM";
 
   // Status mapping
   let status: string = "REPORTED";
@@ -374,7 +375,9 @@ app.post("/api/media/upload", upload.single("file"), async (req: Request, res: R
       uploadStream.on("error", reject);
     });
 
-    const downloadUrl = `http://localhost:${PORT}/api/media/${uploadStream.id}`;
+    const host = req.get("host") || `localhost:${PORT}`;
+    const protocol = req.protocol || "http";
+    const downloadUrl = `${protocol}://${host}/api/media/${uploadStream.id}`;
     res.status(201).json({
       fileId: uploadStream.id.toString(),
       downloadUrl
@@ -936,20 +939,36 @@ app.post("/api/seed", async (req: Request, res: Response) => {
       }
     }
 
+    const salt = await bcrypt.genSalt(10);
+
     // Pre-create staff account
-    const staffEmail = "staff@nagrik.gov";
+    const staffEmail = "admin@nagrik.gov.in";
     let staffUser = await User.findOne({ authUserId: staffEmail });
     if (!staffUser) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash("password123", salt);
+      const hashedPassword = await bcrypt.hash("password", salt);
       staffUser = await User.create({
         authUserId: staffEmail,
         displayName: "Municipal Staff Officer",
         role: "staff",
         authProvider: "email",
-        fcmToken: hashedPassword // store local password hash
+        fcmToken: hashedPassword
       });
       console.log(`[MongoDB Seeder] Pre-provisioned staff account: ${staffEmail}`);
+    }
+
+    // Pre-create citizen account
+    const citizenEmail = "aarav@gmail.com";
+    let citizenUser = await User.findOne({ authUserId: citizenEmail });
+    if (!citizenUser) {
+      const hashedPassword = await bcrypt.hash("password", salt);
+      citizenUser = await User.create({
+        authUserId: citizenEmail,
+        displayName: "Aarav Sharma",
+        role: "citizen",
+        authProvider: "email",
+        fcmToken: hashedPassword
+      });
+      console.log(`[MongoDB Seeder] Pre-provisioned citizen account: ${citizenEmail}`);
     }
 
     res.status(200).json({ success: true, seededCount, staffAccount: staffEmail });

@@ -1,12 +1,12 @@
 import { User, Report, Issue, Department, AgentLog, Config, SimulationState, Notification } from "../models";
 import mongoose from "mongoose";
 
-const NVIDIA_API_KEY = process.env.GEMINI_API_KEY || "";
+const getNvidiaApiKey = () => process.env.GEMINI_API_KEY || "";
 
 let requestQueue: Promise<any> = Promise.resolve();
 
 async function callNvidiaNIM(promptText: string): Promise<string> {
-  if (!NVIDIA_API_KEY) throw new Error("NVIDIA_API_KEY is not set.");
+  if (!getNvidiaApiKey()) throw new Error("NVIDIA_API_KEY is not set.");
 
   // Chain the request to the queue to ensure sequential execution and rate spacing
   const result = requestQueue.then(async () => {
@@ -17,7 +17,7 @@ async function callNvidiaNIM(promptText: string): Promise<string> {
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${NVIDIA_API_KEY}`,
+        "Authorization": `Bearer ${getNvidiaApiKey()}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -124,7 +124,7 @@ export const intakeAgent = {
     let success = false;
     let errorMessage: string | null = null;
 
-    if (NVIDIA_API_KEY) {
+    if (getNvidiaApiKey()) {
       try {
         const promptText = `
           You are a civic infrastructure inspector AI. You will be shown details of a 
@@ -168,8 +168,11 @@ export const intakeAgent = {
         console.error("[Intake Agent] Gemini API error, applying fallbacks:", err);
       }
     } else {
-      // Local Heuristics Fallback
       errorMessage = "Gemini API key missing; applied rule-based heuristics.";
+    }
+
+    if (!success) {
+      // Local Heuristics Fallback
       const text = (report.userTextNote || "").toLowerCase();
       if (text.includes("pothole") || text.includes("crater") || text.includes("road")) {
         category = "pothole";
@@ -319,7 +322,7 @@ export const verificationAgent = {
       
       const hoursApart = Math.abs(issue.createdAt.getTime() - candidate.createdAt.getTime()) / (3600 * 1000);
 
-      if (NVIDIA_API_KEY) {
+      if (getNvidiaApiKey()) {
         try {
           const promptText = `
             You are comparing two citizen reports of civic infrastructure issues to 
@@ -478,7 +481,7 @@ export const routingAgent = {
     let success = false;
     let errorMessage: string | null = null;
 
-    if (NVIDIA_API_KEY && department) {
+    if (getNvidiaApiKey() && department) {
       try {
         const promptText = `
           You are drafting a formal civic complaint on behalf of citizens, to be sent to 
@@ -589,7 +592,7 @@ export const escalationAgent = {
       let success = false;
       let errorMessage: string | null = null;
 
-      if (NVIDIA_API_KEY) {
+      if (getNvidiaApiKey()) {
         try {
           const promptText = `
             You are drafting a follow-up escalation notice on behalf of citizens, because 

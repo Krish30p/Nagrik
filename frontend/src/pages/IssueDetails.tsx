@@ -94,10 +94,10 @@ export const IssueDetails: React.FC = () => {
     DUPLICATE_MERGED: "bg-slate-100 text-slate-400 border-slate-200",
   }[issue.status];
 
-  // Resolve eligibility: reporter of the issue, or admin email
+  // Resolve eligibility: reporter of the issue, or municipal staff member
   const canResolve = currentUser && (
     currentUser.id === issue.createdBy ||
-    currentUser.email === "admin@nagrik.gov.in"
+    authService.isStaff()
   );
 
   return (
