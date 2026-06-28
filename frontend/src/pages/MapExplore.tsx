@@ -168,7 +168,7 @@ export const MapExplore: React.FC = () => {
         "heatmap-color": [
           "interpolate",
           ["linear"],
-          ["heatmap-value"],
+          ["heatmap-density"],
           0, "rgba(33,102,172,0)",
           0.2, "rgba(103,169,207,0.5)",
           0.4, "rgba(209,229,240,0.6)",
