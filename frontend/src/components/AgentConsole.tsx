@@ -195,58 +195,81 @@ export const AgentConsole: React.FC = () => {
             </div>
           </div>
 
-          {/* Telemetry Stream Output (Right Panel) */}
-          <div className="flex-1 flex flex-col h-full bg-slate-900">
-            <div className="flex items-center justify-between px-4 py-2 bg-slate-950 border-b border-slate-850 text-xs">
-              <span className="font-bold text-slate-400">Telemetry Log Stream</span>
-              <span className="text-[10px] text-slate-500">{logs.length} entries</span>
+          <div className="flex-1 flex flex-col h-full bg-slate-950">
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-950 border-b border-slate-900 text-xs select-none">
+              <span className="font-bold text-slate-500">TELEMETRY REGISTRY</span>
+              <span className="text-[10px] text-slate-600">{logs.length} RECORDS</span>
             </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs flex flex-col gap-2.5">
+
+            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs flex flex-col gap-1.5 bg-slate-950 text-slate-300">
               {logs.length === 0 ? (
-                <div className="text-slate-500 italic text-center mt-12">
-                  No telemetry logs. Submit an issue or trigger agent tasks to stream logs.
+                <div className="text-slate-600 italic text-center mt-12">
+                  [EMPTY REGISTRY: NO RECORDED TELEMETRY]
                 </div>
               ) : (
-                logs.map((log) => {
-                  const logTypeStyles = {
-                    info: "text-blue-400 border-blue-500/20 bg-blue-950/20",
-                    success: "text-emerald-400 border-emerald-500/20 bg-emerald-950/20",
-                    warning: "text-amber-400 border-amber-500/20 bg-amber-950/20",
-                    error: "text-red-400 border-red-500/20 bg-red-950/20"
-                  }[log.type];
-
+                logs.map((log, index) => {
+                  const isLatest = index === 0;
                   const isExpanded = expandedLog === log.id;
+
+                  // Custom agent glyphs
+                  const agentGlyph: Record<string, string> = {
+                    INTAKE: "⌕ [INTK]",
+                    VERIFICATION: "⚯ [VERF]",
+                    ROUTING: "🧭 [ROUT]",
+                    ESCALATION: "⧁ [ESCL]",
+                  };
+                  const glyph = agentGlyph[log.agentName.toUpperCase()] || "⊙ [AGNT]";
+
+                  // Log level indicator character
+                  const levelChar = {
+                    info: "·",
+                    success: "✓",
+                    warning: "!",
+                    error: "✗"
+                  }[log.type] || "·";
 
                   return (
                     <div
                       key={log.id}
-                      className={`border rounded-lg p-2.5 transition-all ${logTypeStyles}`}
+                      className={`border-b border-slate-900 pb-2 mb-2 last:border-b-0 hover:bg-slate-900/45 transition-colors relative pl-4 ${
+                        isLatest ? "border-l-2 border-l-terracotta" : "border-l-2 border-l-slate-800"
+                      }`}
                     >
                       <div
-                        className="flex justify-between items-center cursor-pointer"
+                        className="flex flex-col sm:flex-row sm:items-baseline gap-2 cursor-pointer"
                         onClick={() => toggleLog(log.id)}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold bg-slate-850 text-slate-200 px-1.5 py-0.5 rounded text-[10px]">
-                            {log.agentName}
+                        {/* Timestamp Left Column */}
+                        <span className="text-[10px] text-slate-500 select-none w-20 shrink-0">
+                          [{new Date(log.timestamp).toLocaleTimeString()}]
+                        </span>
+
+                        {/* Agent ID & Action */}
+                        <div className="flex flex-wrap items-center gap-2 flex-1">
+                          <span className={`text-[10px] font-bold ${
+                            isLatest ? "text-terracotta" : "text-slate-400"
+                          }`}>
+                            {glyph}
                           </span>
-                          <span className="font-bold">{log.action}</span>
+                          <span className="text-slate-500 font-bold">{levelChar}</span>
+                          <span className="text-slate-200">{log.action}</span>
                           {log.issueId && (
-                            <span className="text-[10px] text-slate-400 font-normal">
-                              (Ticket: {log.issueId})
+                            <span className="text-[9px] text-slate-500 bg-slate-900 px-1 py-0.2 rounded">
+                              NGK-{log.issueId.substring(0, 8).toUpperCase()}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-slate-500 text-[10px]">
-                          <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                          {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+
+                        <div className="text-[10px] text-slate-500 shrink-0 self-end sm:self-center">
+                          {isExpanded ? "[collapse]" : "[expand]"}
                         </div>
                       </div>
                       
                       {isExpanded && (
-                        <div className="mt-3.5 pt-3 border-t border-slate-800 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-300 font-sans">
-                          {log.details}
+                        <div className="mt-2 pl-24 text-[11px] leading-relaxed text-slate-400 border-l border-dashed border-slate-800">
+                          <div className="bg-slate-900/60 p-2.5 rounded font-sans whitespace-pre-wrap">
+                            {log.details}
+                          </div>
                         </div>
                       )}
                     </div>

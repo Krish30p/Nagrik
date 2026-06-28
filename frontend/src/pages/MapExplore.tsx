@@ -6,6 +6,7 @@ import { MapPin, Filter, Layers, Sparkles, Navigation } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { GOOGLE_MAPS_API_KEY } from "../services/config";
+import { StatusStamp } from "../components/StatusStamp";
 
 export const MapExplore: React.FC = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -47,7 +48,7 @@ export const MapExplore: React.FC = () => {
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: "mapbox://styles/mapbox/light-v11",
       center: [77.2090, 28.6139], // Delhi
       zoom: 11,
     });
@@ -71,34 +72,34 @@ export const MapExplore: React.FC = () => {
     // Add new markers
     filteredIssues.forEach((issue) => {
       const el = document.createElement("div");
-      el.className = "custom-marker";
-      el.style.width = "14px";
-      el.style.height = "14px";
-      el.style.borderRadius = "50%";
-      el.style.backgroundColor = getSeverityColor(issue.severity);
-      el.style.border = "2px solid white";
-      el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
-      el.style.cursor = "pointer";
-      el.style.position = "relative";
+      el.className = "custom-file-tag-marker cursor-pointer flex flex-col items-center select-none";
 
-      if (issue.status === "ESCALATED") {
-        const pulse = document.createElement("div");
-        pulse.className = "absolute rounded-full animate-ping";
-        pulse.style.inset = "-6px";
-        pulse.style.backgroundColor = getSeverityColor(issue.severity);
-        pulse.style.opacity = "0.4";
-        el.appendChild(pulse);
-      }
+      const tagBg = getSeverityColor(issue.severity);
+      const isEscalated = issue.status === "ESCALATED";
 
-      el.addEventListener("click", () => {
+      el.innerHTML = `
+        <div class="flex flex-col items-center marker-stamp">
+          <div class="text-white px-2 py-0.5 flex items-center gap-1 border-l-2 border-ink text-[9px] font-mono font-bold tracking-tight rounded-[2px]" style="background-color: ${tagBg}">
+            <span>${issue.category.substring(0, 4).toUpperCase()}</span>
+            <span>NGK-${issue.id.substring(0, 4).toUpperCase()}</span>
+          </div>
+          <div class="w-[1px] h-3 bg-ink"></div>
+          <div class="w-1.5 h-1.5 bg-ink rounded-full relative">
+            ${isEscalated ? `<div class="absolute rounded-full animate-ping inset-[-6px] bg-secondary opacity-40"></div>` : ""}
+          </div>
+        </div>
+      `;
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
         setSelectedIssue(issue);
         map.easeTo({
           center: [issue.longitude, issue.latitude],
-          zoom: 13,
+          zoom: 14,
         });
       });
 
-      const marker = new mapboxgl.Marker(el)
+      const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([issue.longitude, issue.latitude])
         .addTo(map);
 
@@ -196,156 +197,172 @@ export const MapExplore: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-6 h-[calc(100vh-130px)] min-h-[500px]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row gap-6 h-[calc(100vh-112px)] min-h-[500px] text-ink font-ui">
       {/* Filters Sidebar */}
-      <div className="w-full lg:w-72 shrink-0 bg-surface border border-outline-variant rounded-xl p-5 flex flex-col gap-4 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] text-left h-fit lg:h-full overflow-y-auto">
-        <div className="flex items-center gap-2 border-b border-outline-variant pb-3 mb-1">
-          <Filter className="h-4.5 w-4.5 text-primary" />
-          <h2 className="text-sm font-bold text-on-surface uppercase tracking-wider">Map Filters</h2>
+      <div className="w-full lg:w-72 shrink-0 bg-paper-raised border border-rule rounded p-5 flex flex-col gap-4 text-left h-fit lg:h-full overflow-y-auto">
+        <div className="flex items-center gap-2 border-b border-rule pb-3 mb-1">
+          <Filter className="h-4 w-4 text-primary" />
+          <h2 className="text-xs font-bold uppercase tracking-wider font-mono">Registry Filters</h2>
         </div>
 
         {/* Category */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Category</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted font-mono">Category</label>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 font-medium focus:outline-none"
+            className="bg-paper border border-rule text-ink text-xs rounded p-2 focus:outline-none font-mono"
           >
-            <option value="ALL">All Categories</option>
-            <option value="Garbage">Garbage</option>
-            <option value="Streetlight">Streetlight</option>
-            <option value="Pothole">Pothole</option>
-            <option value="Water Leakage">Water Leakage</option>
-            <option value="Critical Infrastructure">Critical Infrastructure</option>
+            <option value="ALL">ALL CATEGORIES</option>
+            <option value="Garbage">GARBAGE</option>
+            <option value="Streetlight">STREETLIGHT</option>
+            <option value="Pothole">POTHOLE</option>
+            <option value="Water Leakage">WATER LEAKAGE</option>
+            <option value="Critical Infrastructure">CRITICAL INFRASTRUCTURE</option>
           </select>
         </div>
 
         {/* Severity */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Severity</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted font-mono">Severity</label>
           <select
             value={filterSeverity}
             onChange={(e) => setFilterSeverity(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 font-medium focus:outline-none"
+            className="bg-paper border border-rule text-ink text-xs rounded p-2 focus:outline-none font-mono"
           >
-            <option value="ALL">All Severities</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="CRITICAL">Critical</option>
+            <option value="ALL">ALL SEVERITIES</option>
+            <option value="LOW">LOW</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HIGH">HIGH</option>
+            <option value="CRITICAL">CRITICAL</option>
           </select>
         </div>
 
         {/* Status */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted font-mono">Status</label>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 font-medium focus:outline-none"
+            className="bg-paper border border-rule text-ink text-xs rounded p-2 focus:outline-none font-mono"
           >
-            <option value="ALL">All Statuses</option>
-            <option value="REPORTED">Reported</option>
-            <option value="VERIFIED">Verified</option>
-            <option value="ROUTED">Routed</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="ESCALATED">Escalated</option>
-            <option value="RESOLVED">Resolved</option>
+            <option value="ALL">ALL STATUSES</option>
+            <option value="REPORTED">REPORTED</option>
+            <option value="VERIFIED">VERIFIED</option>
+            <option value="ROUTED">ROUTED</option>
+            <option value="IN_PROGRESS">IN PROGRESS</option>
+            <option value="ESCALATED">ESCALATED</option>
+            <option value="RESOLVED">RESOLVED</option>
           </select>
         </div>
 
         {/* Ward */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ward</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted font-mono">Ward</label>
           <select
             value={filterWard}
             onChange={(e) => setFilterWard(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-2 font-medium focus:outline-none"
+            className="bg-paper border border-rule text-ink text-xs rounded p-2 focus:outline-none font-mono"
           >
-            <option value="ALL">All Wards</option>
-            <option value="Ward 1">Ward 1 (Central)</option>
-            <option value="Ward 2">Ward 2 (West)</option>
-            <option value="Ward 3">Ward 3 (East)</option>
-            <option value="Ward 4">Ward 4 (South)</option>
+            <option value="ALL">ALL WARDS</option>
+            <option value="Ward 1">WARD 1 (CENTRAL)</option>
+            <option value="Ward 2">WARD 2 (WEST)</option>
+            <option value="Ward 3">WARD 3 (EAST)</option>
+            <option value="Ward 4">WARD 4 (SOUTH)</option>
           </select>
         </div>
 
-        <hr className="border-slate-100 my-2" />
+        <hr className="border-rule my-2 border-dashed" />
 
         {/* Map Layers */}
         <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-            <Layers className="h-3 w-3" /> Map Overlays
+          <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted flex items-center gap-1 font-mono">
+            <Layers className="h-3.5 w-3.5" /> MAP OVERLAYS
           </span>
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`w-full text-xs font-bold py-2 px-3 rounded-lg border transition-all flex items-center justify-center gap-1.5 ${
+            className={`w-full text-xs font-mono font-bold py-2 px-3 rounded border transition-all flex items-center justify-center gap-1.5 ${
               showHeatmap
-                ? "bg-secondary text-white border-secondary hover:bg-secondary-hover"
-                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                ? "bg-secondary text-paper border-secondary hover:brightness-105"
+                : "bg-paper text-ink-muted border-rule hover:bg-surface-container-low"
             }`}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {showHeatmap ? "Hide Heatmap" : "Show Civic Heatmap"}
+            {showHeatmap ? "HIDE HEATMAP" : "SHOW CIVIC HEATMAP"}
           </button>
         </div>
       </div>
 
       {/* Main Map Box */}
-      <div className="flex-1 bg-surface border border-outline-variant rounded-xl relative flex flex-col shadow-sm overflow-hidden h-full">
+      <div className="flex-1 bg-paper border border-rule rounded relative flex flex-col overflow-hidden h-full">
         {/* Map Header */}
-        <div className="bg-surface-bright border-b border-outline-variant py-3 px-4 flex justify-between items-center text-left">
+        <div className="bg-paper-raised border-b border-rule py-3 px-4 flex flex-col sm:flex-row sm:justify-between sm:items-center text-left gap-2 z-10">
           <div>
-            <h3 className="text-sm font-bold text-on-surface flex items-center gap-1.5">
-              <Navigation className="h-4 w-4 text-primary" />
-              Live City GIS View
+            <h3 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-1.5 font-mono">
+              <Navigation className="h-3.5 w-3.5 text-primary" />
+              LIVE CITY GIS REGISTRY
             </h3>
-            <p className="text-[10px] text-on-surface-variant">Displaying {filteredIssues.length} active infrastructure tickets</p>
+            <p className="text-[10px] text-ink-muted">Displaying {filteredIssues.length} active infrastructure tickets</p>
           </div>
-          <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-            Agent Engine Live
-          </span>
+          <div className="flex items-center gap-3">
+            {/* Coordinate readout */}
+            <div className="hidden sm:flex flex-col text-right font-mono text-[9px] text-ink-muted">
+              <span>CURRENT REGION</span>
+              <span className="font-bold text-ink">28.6139° N, 77.2090° E</span>
+            </div>
+            <span className="bg-seal-tint border border-seal/20 text-seal text-[9px] font-bold px-2 py-0.5 rounded flex items-center gap-1 font-mono uppercase">
+              <span className="h-1.5 w-1.5 rounded-full bg-seal animate-pulse"></span>
+              AGENT ENGINE LIVE
+            </span>
+          </div>
         </div>
 
         {/* Interactive Mapbox Map */}
-        <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-          <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+        <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#f7f3ea]">
+          <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ minHeight: '400px' }} />
 
-          {/* Issue Floating Mini-Card */}
+          {/* Dossier Drawer Preview (Dossier detail page drawer overlay) */}
           {selectedIssue && (
-            <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-surface border border-outline-variant rounded-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] p-4 z-10 text-left transition-all duration-200">
-              <div className="flex justify-between items-start gap-2 mb-2">
-                <span className="text-[10px] uppercase font-bold text-primary bg-primary-container/10 px-2 py-0.5 rounded border border-primary/20">
-                  {selectedIssue.category}
-                </span>
+            <div className="absolute bottom-4 inset-x-4 md:left-auto md:right-4 md:w-96 bg-paper-raised border-t-4 border-secondary border-l border-r border-b border-rule rounded-t p-5 z-20 text-left transition-all duration-200 shadow-lg">
+              <div className="flex justify-between items-start gap-2 mb-3">
+                <div>
+                  <h4 className="font-display text-sm font-bold text-ink mb-1">
+                    INCIDENT CASE FILE #{selectedIssue.id.substring(0, 8).toUpperCase()}
+                  </h4>
+                  <div className="inline-block scale-90 -ml-1">
+                    <StatusStamp status={selectedIssue.status} />
+                  </div>
+                </div>
                 <button
                   onClick={() => setSelectedIssue(null)}
-                  className="text-xs text-on-surface-variant hover:text-on-surface font-bold px-1.5"
+                  className="text-sm text-ink-muted hover:text-ink font-bold px-1.5"
                 >
                   ✕
                 </button>
               </div>
-              <h4 className="text-sm font-bold text-on-surface line-clamp-1 mb-1">
-                {selectedIssue.title}
-              </h4>
-              <p className="text-xs text-on-surface-variant line-clamp-2 leading-relaxed mb-3">
-                {selectedIssue.description}
-              </p>
-              <div className="flex items-center gap-1 text-[10px] text-slate-400 mb-3">
-                <MapPin className="h-3 w-3" />
-                <span className="truncate">{selectedIssue.location}</span>
+              <div className="dashed-rule h-px w-full my-3"></div>
+              
+              <div className="space-y-2 mb-4 font-ui text-xs">
+                <div className="flex gap-2">
+                  <span className="font-mono text-[10px] text-ink-muted w-20 shrink-0">LOCATION:</span>
+                  <span className="text-ink font-bold">{selectedIssue.location}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-mono text-[10px] text-ink-muted w-20 shrink-0">CATEGORY:</span>
+                  <span className="text-ink uppercase font-bold">{selectedIssue.category}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-mono text-[10px] text-ink-muted w-20 shrink-0">DESCRIPTION:</span>
+                  <span className="text-ink-muted line-clamp-2 leading-relaxed">{selectedIssue.description}</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">
-                  Status: {selectedIssue.status}
-                </span>
+              
+              <div className="flex gap-2 pt-2">
                 <Link
                   to={`/issues/${selectedIssue.id}`}
-                  className="bg-primary text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-primary-hover shadow-sm"
+                  className="flex-1 bg-secondary text-paper text-center py-2.5 text-xs font-mono font-bold uppercase tracking-wider rounded hover:brightness-105 transition-all shadow-sm"
                 >
-                  View Details
+                  VIEW FULL DOSSIER
                 </Link>
               </div>
             </div>

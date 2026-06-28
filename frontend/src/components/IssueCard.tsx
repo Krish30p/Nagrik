@@ -1,8 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Issue } from "../types";
-import { MapPin, Calendar, Users, Clock } from "lucide-react";
+import { MapPin, Calendar, Clock } from "lucide-react";
 import { getSimulatedCurrentTime } from "../utils/time";
+import { StatusStamp } from "./StatusStamp";
 
 interface IssueCardProps {
   issue: Issue;
@@ -10,21 +11,11 @@ interface IssueCardProps {
 
 export const IssueCard: React.FC<IssueCardProps> = ({ issue }) => {
   const severityColors = {
-    LOW: "bg-green-50 border-green-200 text-green-700",
-    MEDIUM: "bg-blue-50 border-blue-200 text-blue-700",
-    HIGH: "bg-amber-50 border-amber-200 text-amber-700",
-    CRITICAL: "bg-red-50 border-red-200 text-red-700",
+    LOW: "bg-severity-low/10 border-severity-low text-status-resolved",
+    MEDIUM: "bg-severity-moderate/10 border-severity-moderate text-status-reported",
+    HIGH: "bg-severity-high/10 border-severity-high text-status-routed",
+    CRITICAL: "bg-severity-critical/10 border-severity-critical text-status-escalated font-bold",
   }[issue.severity];
-
-  const statusColors = {
-    REPORTED: "bg-slate-100 text-slate-800 border-slate-200",
-    VERIFIED: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    ROUTED: "bg-purple-50 text-purple-700 border-purple-200",
-    IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
-    ESCALATED: "bg-red-100 text-red-700 border-red-200 animate-pulse",
-    RESOLVED: "bg-green-150 text-green-800 border-green-250",
-    DUPLICATE_MERGED: "bg-slate-100 text-slate-400 border-slate-200",
-  }[issue.status];
 
   // Calculate SLA time progress
   const createdTime = new Date(issue.createdAt).getTime();
@@ -36,46 +27,46 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue }) => {
   const percentageElapsed = Math.min(100, (elapsedMs / slaMs) * 100);
 
   const isBreached = elapsedMs > slaMs;
+  const shortId = issue.id.substring(0, 8).toUpperCase();
 
   return (
     <Link
       to={`/issues/${issue.id}`}
-      className="block bg-white rounded-xl border border-slate-200 hover:border-primary/30 hover:shadow-md transition-all duration-200 overflow-hidden"
+      className="block bg-paper-raised border border-rule rounded-md hover:bg-surface-container-low hover:border-ink-muted/30 transition-all duration-150 ease-out"
     >
-      <div className="p-5 flex flex-col h-full justify-between">
+      <div className="p-4 flex flex-col h-full justify-between">
         <div>
           {/* Badge Row */}
           <div className="flex justify-between items-start gap-2 mb-3">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-primary bg-primary/5 px-2.5 py-1 rounded-md border border-primary/10">
+            <span className="font-mono text-[10px] uppercase font-bold tracking-wider text-ink bg-rule/35 px-2 py-0.5 rounded">
               {issue.category}
             </span>
             <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] font-bold px-2 py-0.5 border rounded ${severityColors}`}>
+              <span className={`text-[10px] font-mono px-2 py-0.5 border rounded-full ${severityColors}`}>
                 {issue.severity}
               </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 border rounded ${statusColors}`}>
-                {issue.status}
-              </span>
+              <StatusStamp status={issue.status} />
             </div>
           </div>
 
           {/* Title & Desc */}
-          <h3 className="text-base font-bold text-slate-800 line-clamp-1 mb-1.5 hover:text-primary transition-colors">
+          <span className="font-mono text-[10px] text-ink-muted block mb-1">NGK-{shortId}</span>
+          <h3 className="font-display text-base font-bold text-ink leading-tight mb-1.5 hover:text-secondary transition-colors">
             {issue.title}
           </h3>
-          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-4">
+          <p className="font-ui text-xs text-ink-muted line-clamp-2 leading-relaxed mb-4">
             {issue.description}
           </p>
         </div>
 
         {/* Details Footer */}
-        <div className="space-y-3.5 pt-3.5 border-t border-slate-100 text-slate-500 text-xs">
+        <div className="space-y-3 pt-3 border-t border-dashed border-rule text-ink-muted text-xs">
           <div className="flex justify-between items-center gap-4">
             <div className="flex items-center gap-1.5 truncate">
-              <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-              <span className="truncate font-medium text-slate-600">{issue.location}</span>
+              <MapPin className="h-3.5 w-3.5 text-ink-muted/65 shrink-0" />
+              <span className="truncate font-ui text-[11px]">{issue.location}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-400 shrink-0 font-medium">
+            <div className="flex items-center gap-1.5 text-ink-muted/65 shrink-0 font-mono text-[10px]">
               <Calendar className="h-3.5 w-3.5" />
               <span>{new Date(issue.createdAt).toLocaleDateString()}</span>
             </div>
@@ -83,32 +74,39 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue }) => {
 
           {/* SLA and Confirmation telemetry */}
           <div className="space-y-2">
-            <div className="flex justify-between items-center text-[11px] font-semibold text-slate-700">
+            <div className="flex justify-between items-center text-[10px] font-mono text-ink">
               <div className="flex items-center gap-1.5">
-                <Clock className={`h-3.5 w-3.5 ${isBreached ? "text-danger" : "text-slate-400"}`} />
+                <Clock className={`h-3.5 w-3.5 ${isBreached ? "text-status-escalated" : "text-ink-muted/50"}`} />
                 <span>
                   {isBreached ? (
-                    <span className="text-danger font-bold uppercase tracking-wide">SLA Breached</span>
+                    <span className="text-status-escalated font-bold uppercase tracking-wide">SLA BREACHED</span>
                   ) : (
-                    <span>SLA: {remainingDays} days remaining</span>
+                    <span>SLA: {remainingDays} DAYS REMAINING</span>
                   )}
                 </span>
               </div>
-              <div className="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
-                <Users className="h-3 w-3 text-slate-400" />
-                <span>Urgency: {issue.urgencyScore}</span>
+              <div className="flex items-center gap-1 bg-paper px-1.5 py-0.5 rounded border border-rule text-[9px] font-bold">
+                <span>URGENCY: {issue.urgencyScore}</span>
               </div>
             </div>
 
-            {/* SLA Progress Bar */}
+            {/* SLA Progress Bar (Fuse Style) */}
             {issue.status !== "RESOLVED" && (
-              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="w-full h-1 bg-rule rounded-full overflow-hidden relative">
                 <div
-                  className={`h-full rounded-full transition-all duration-350 ${
-                    isBreached ? "bg-danger" : percentageElapsed > 75 ? "bg-amber-500" : "bg-primary"
+                  className={`h-full transition-all duration-300 ${
+                    isBreached ? "bg-status-escalated" : percentageElapsed > 75 ? "bg-status-reported" : "bg-seal"
                   }`}
-                  style={{ width: `${percentageElapsed}%` }}
+                  style={{ width: `${100 - percentageElapsed}%` }} // empties left-to-right (from 100% to 0% remaining)
                 ></div>
+              </div>
+            )}
+            
+            {isBreached && issue.status !== "RESOLVED" && (
+              <div className="flex justify-end">
+                <span className="font-mono text-[9px] text-status-escalated border border-double border-status-escalated px-1 py-0.2 rotate-3 rounded uppercase font-bold tracking-widest bg-paper">
+                  OVERDUE
+                </span>
               </div>
             )}
           </div>

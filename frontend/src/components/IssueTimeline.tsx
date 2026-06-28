@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Issue, Complaint, Escalation } from "../types";
 import { dbService } from "../services/db";
-import { CheckCircle2, FileText, Send, AlertOctagon, Wrench, Eye, ShieldCheck } from "lucide-react";
+import { FileText, ChevronDown, ChevronUp } from "lucide-react";
 
 interface IssueTimelineProps {
   issue: Issue;
@@ -26,101 +26,101 @@ export const IssueTimeline: React.FC<IssueTimelineProps> = ({ issue }) => {
     fetchData();
   }, [issue.id, issue.status]);
 
+  const statusHierarchy = ["REPORTED", "VERIFIED", "ROUTED", "IN_PROGRESS", "ESCALATED", "RESOLVED"];
+  const currentStatusIndex = statusHierarchy.indexOf(issue.status);
+
   const timelineSteps = [
     {
       key: "REPORTED",
-      title: "Citizen Report Logged",
-      agent: "Intake Agent",
-      description: "Citizen report registered in database. Intake Agent triggered to classify category, estimate initial severity, and identify landmarks.",
+      title: "REPORT LOGGED BY CITIZEN",
+      agent: "INTK",
+      time: new Date(issue.createdAt).toLocaleTimeString(),
+      description: "Incident entry filed in municipal ledger. Intake Agent triggered to analyze category, severity, and landmark data.",
       details: () => (
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mt-2 text-xs space-y-1 text-slate-600">
-          <p><span className="font-bold text-slate-700">Category:</span> {issue.category}</p>
-          <p><span className="font-bold text-slate-700">Estimated Severity:</span> {issue.severity}</p>
-          <p><span className="font-bold text-slate-700">GPS Coordinates:</span> [{issue.latitude.toFixed(4)}, {issue.longitude.toFixed(4)}]</p>
+        <div className="bg-paper border border-rule rounded p-2.5 mt-1.5 text-[10px] space-y-0.5 text-ink-muted">
+          <p><span className="font-bold text-ink">CATEGORY:</span> {issue.category.toUpperCase()}</p>
+          <p><span className="font-bold text-ink">ESTIMATED SEVERITY:</span> {issue.severity}</p>
+          <p><span className="font-bold text-ink">GEOGRAPHIC MAP REFERENCE:</span> [{issue.latitude.toFixed(4)}N, {issue.longitude.toFixed(4)}E]</p>
           {issue.voiceTranscript && (
-            <p><span className="font-bold text-slate-700">Audio Transcription:</span> "{issue.voiceTranscript}"</p>
+            <p><span className="font-bold text-ink">VOICE TRANSCRIPT:</span> "{issue.voiceTranscript.toUpperCase()}"</p>
           )}
         </div>
       ),
-      icon: Eye,
-      color: "text-blue-500 bg-blue-50 border-blue-200"
     },
     {
       key: "VERIFIED",
-      title: "Spatial Verification Completed",
-      agent: "Verification Agent",
-      description: "Verification Agent scanned a 50m radius for existing reports. Checked spatial-temporal overlap to cluster duplicates.",
+      title: "SPATIAL VERIFICATION COMPLETED",
+      agent: "VERF",
+      time: new Date(new Date(issue.createdAt).getTime() + 45000).toLocaleTimeString(), // simulated offset
+      description: "Verification Agent scanned 50m radius. Spatial-temporal overlap analysis executed to resolve duplicates.",
       details: () => (
-        <div className="bg-indigo-50/50 border border-indigo-100 rounded-lg p-3 mt-2 text-xs space-y-1 text-slate-600">
-          <p><span className="font-bold text-indigo-800">Cluster Status:</span> {issue.threadId ? `Aggregated into thread ${issue.threadId}` : "Unique new thread created"}</p>
-          <p><span className="font-bold text-indigo-800">Urgency Score:</span> {issue.urgencyScore}/100 (Calculated via confirmation count)</p>
+        <div className="bg-paper border border-rule rounded p-2.5 mt-1.5 text-[10px] space-y-0.5 text-ink-muted">
+          <p><span className="font-bold text-ink">CLUSTER STATUS:</span> {issue.threadId ? `MERGED INTO THREAD ID: ${issue.threadId.substring(0,8).toUpperCase()}` : "CONFIRMED UNIQUE NEW CASE THREAD"}</p>
+          <p><span className="font-bold text-ink">URGENCY SCORE:</span> {issue.urgencyScore}/100</p>
         </div>
       ),
-      icon: ShieldCheck,
-      color: "text-indigo-500 bg-indigo-50 border-indigo-200"
     },
     {
       key: "ROUTED",
-      title: "Routed & Complaint Dispatched",
-      agent: "Routing Agent",
-      description: "Routing Agent mapped the ticket to the responsible department and drafted a professional government-facing complaint letter.",
+      title: "ROUTE CONFIGURED & DISPATCHED",
+      agent: "ROUT",
+      time: new Date(new Date(issue.createdAt).getTime() + 90000).toLocaleTimeString(), // simulated offset
+      description: "Routing Agent matched file to department ward index. Formal government complaint letter drafted.",
       details: () => (
-        <div className="mt-2 text-xs">
+        <div className="mt-1.5 text-[10px]">
           {complaint ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between bg-purple-50 text-purple-700 border border-purple-100 rounded-lg px-3 py-2">
-                <span>Official Complaint Drafted</span>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between bg-seal-tint border border-seal/20 rounded px-2.5 py-1 text-seal font-bold">
+                <span>OFFICIAL DRAFT GENERATED</span>
                 <button
                   onClick={() => setViewComplaint(!viewComplaint)}
-                  className="flex items-center gap-1 font-bold hover:underline"
+                  className="flex items-center gap-1 font-mono hover:underline text-[9px] uppercase"
                 >
-                  <FileText className="h-3.5 w-3.5" />
-                  {viewComplaint ? "Hide Letter" : "View Letter"}
+                  <FileText className="h-3 w-3" />
+                  {viewComplaint ? "Hide" : "View Letter"}
                 </button>
               </div>
               {viewComplaint && (
-                <pre className="bg-slate-900 text-slate-200 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap font-mono text-[10px] leading-relaxed border border-slate-800 shadow-inner">
+                <pre className="bg-slate-900 text-slate-200 p-3 rounded overflow-x-auto whitespace-pre-wrap font-mono text-[9px] leading-relaxed border border-slate-800 max-h-60">
                   {complaint.generatedComplaint}
                 </pre>
               )}
             </div>
           ) : (
-            <p className="text-slate-400 italic">Complaint generation pending...</p>
+            <p className="text-ink-muted italic">[COMPLAINT DRAFT GENERATION IN PROGRESS...]</p>
           )}
         </div>
       ),
-      icon: Send,
-      color: "text-purple-500 bg-purple-50 border-purple-200"
     },
     {
       key: "IN_PROGRESS",
-      title: "Assigned & Work Scheduled",
-      agent: "Department Sync",
-      description: "The municipal department accepted the ticket and dispatched field personnel to investigate and schedule cleanup.",
-      icon: Wrench,
-      color: "text-amber-500 bg-amber-50 border-amber-200"
+      title: "ASSIGNED & WORK SCHEDULED",
+      agent: "DEPT",
+      time: new Date(new Date(issue.createdAt).getTime() + 180000).toLocaleTimeString(), // simulated offset
+      description: "Responsible municipal board acknowledged file. Scheduled for physical investigation and work order execution.",
     },
     {
       key: "ESCALATED",
-      title: "Ticket Escalated (SLA Warning)",
-      agent: "Escalation Agent",
-      description: "Escalation Agent scanned database, detected that resolution exceeded the SLA limit, and generated formal notices.",
+      title: "LEDGER ESCALATED (SLA BREACH)",
+      agent: "ESCL",
+      time: new Date(new Date(issue.createdAt).getTime() + (issue.slaDays * 24 * 3600 * 1000)).toLocaleTimeString(),
+      description: "Escalation Agent detected resolution timeline exceeded SLA parameter. Level 1 Notice generated.",
       details: () => (
-        <div className="mt-2 text-xs space-y-2">
+        <div className="mt-1.5 text-[10px] space-y-1.5">
           {escalations.map((esc) => (
-            <div key={esc.id} className="border border-red-200 bg-red-50/50 rounded-lg p-2.5">
-              <div className="flex justify-between items-center text-red-800 font-semibold mb-1">
-                <span>Escalation Notice (Level {esc.escalationLevel})</span>
+            <div key={esc.id} className="border border-status-escalated/30 bg-status-escalated/5 rounded p-2">
+              <div className="flex justify-between items-center text-status-escalated font-bold mb-1">
+                <span>ESCALATION LETTER (LEVEL {esc.escalationLevel})</span>
                 <button
                   onClick={() => setViewNotice(viewNotice === esc.id ? null : esc.id)}
-                  className="hover:underline flex items-center gap-1 font-bold text-[11px]"
+                  className="hover:underline flex items-center gap-1 font-mono text-[9px] uppercase"
                 >
-                  <FileText className="h-3.5 w-3.5" />
-                  {viewNotice === esc.id ? "Hide Notice" : "View Notice"}
+                  <FileText className="h-3 w-3" />
+                  {viewNotice === esc.id ? "Hide" : "View"}
                 </button>
               </div>
               {viewNotice === esc.id && (
-                <pre className="bg-slate-900 text-slate-200 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap font-mono text-[10px] leading-relaxed border border-slate-800 shadow-inner">
+                <pre className="bg-slate-900 text-slate-200 p-3 rounded overflow-x-auto whitespace-pre-wrap font-mono text-[9px] leading-relaxed border border-slate-800 max-h-60">
                   {esc.generatedNotice}
                 </pre>
               )}
@@ -128,24 +128,17 @@ export const IssueTimeline: React.FC<IssueTimelineProps> = ({ issue }) => {
           ))}
         </div>
       ),
-      icon: AlertOctagon,
-      color: "text-red-500 bg-red-50 border-red-200"
     },
     {
       key: "RESOLVED",
-      title: "Civic Ticket Resolved",
-      agent: "Municipal Verification",
-      description: "Field personnel executed repairs/cleanup. Operations audit confirmed completion, and notifications were dispatched to reporters.",
-      icon: CheckCircle2,
-      color: "text-green-500 bg-green-50 border-green-200"
+      title: "CIVIC RECORD CLOSED",
+      agent: "AUDT",
+      time: new Date(issue.updatedAt).toLocaleTimeString(),
+      description: "Field repair completed. Operations desk closed file audit loop. Citizen confirmation notification dispatched.",
     }
   ];
 
-  // Helper to determine active steps
-  const statusHierarchy = ["REPORTED", "VERIFIED", "ROUTED", "IN_PROGRESS", "ESCALATED", "RESOLVED"];
-  const currentStatusIndex = statusHierarchy.indexOf(issue.status);
-
-  // Filter steps: Only display ESCALATED step if the ticket actually went through escalation
+  // Only display ESCALATED step if the ticket actually went through escalation
   const visibleSteps = timelineSteps.filter((step) => {
     if (step.key === "ESCALATED" && escalations.length === 0 && issue.status !== "ESCALATED") {
       return false;
@@ -154,70 +147,59 @@ export const IssueTimeline: React.FC<IssueTimelineProps> = ({ issue }) => {
   });
 
   return (
-    <div className="flow-root">
-      <ul className="-mb-8">
-        {visibleSteps.map((step, stepIdx) => {
+    <div className="flow-root font-mono text-xs text-ink">
+      <div className="border-l-2 border-rule ml-2 pl-4 py-1 space-y-6 relative text-left">
+        {visibleSteps.map((step) => {
           const isCompleted =
             issue.status === "RESOLVED" ||
             statusHierarchy.indexOf(step.key) <= currentStatusIndex ||
             (step.key === "ESCALATED" && escalations.length > 0);
 
-          const StepIcon = step.icon;
+          const isActive = issue.status === step.key;
 
           return (
-            <li key={step.key}>
-              <div className="relative pb-8">
-                {stepIdx !== visibleSteps.length - 1 ? (
-                  <span
-                    className={`absolute top-5 left-5 -ml-px h-full w-0.5 ${
-                      isCompleted ? "bg-primary" : "bg-slate-200"
-                    }`}
-                    aria-hidden="true"
-                  />
-                ) : null}
-                <div className="relative flex items-start space-x-3">
-                  {/* Icon Column */}
-                  <div
-                    className={`h-10 w-10 rounded-full border flex items-center justify-center ring-8 ring-white shrink-0 transition-all ${
-                      isCompleted ? step.color : "bg-white border-slate-200 text-slate-400"
-                    }`}
-                  >
-                    <StepIcon className="h-5 w-5" />
-                  </div>
+            <div key={step.key} className="relative group">
+              {/* Active Indicator dot */}
+              <span className={`absolute -left-[21px] top-1.5 h-2 w-2 rounded-full border ${
+                isActive
+                  ? "bg-secondary border-secondary scale-125"
+                  : isCompleted
+                  ? "bg-seal border-seal"
+                  : "bg-paper border-rule text-ink-muted"
+              }`} />
 
-                  {/* Text Column */}
-                  <div className="min-w-0 flex-1 py-1.5 text-left">
-                    <div className="flex justify-between items-center gap-2">
-                      <h4
-                        className={`text-sm font-bold ${
-                          isCompleted ? "text-slate-800" : "text-slate-400"
-                        }`}
-                      >
-                        {step.title}
-                      </h4>
-                      {isCompleted && step.agent && (
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
-                          {step.agent}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <p
-                      className={`text-xs mt-1 leading-relaxed ${
-                        isCompleted ? "text-slate-500" : "text-slate-400"
-                      }`}
-                    >
-                      {step.description}
-                    </p>
-
-                    {isCompleted && step.details && step.details()}
-                  </div>
-                </div>
+              <div className="flex justify-between items-baseline gap-2">
+                <span className={`font-bold tracking-tight text-[11px] ${
+                  isActive ? "text-secondary" : isCompleted ? "text-ink" : "text-ink-muted/50"
+                }`}>
+                  {step.title}
+                </span>
+                
+                {isCompleted && (
+                  <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                    isActive
+                      ? "bg-secondary/10 border-secondary text-secondary"
+                      : "bg-paper border-rule text-ink-muted"
+                  }`}>
+                    {step.agent}
+                  </span>
+                )}
               </div>
-            </li>
+
+              <div className="flex gap-4 items-baseline mt-1">
+                <span className="text-[9px] text-ink-muted whitespace-nowrap shrink-0">{step.time}</span>
+                <p className={`text-[10px] leading-tight font-ui ${
+                  isCompleted ? "text-ink-muted" : "text-ink-muted/30"
+                }`}>
+                  {step.description}
+                </p>
+              </div>
+
+              {isCompleted && step.details && step.details()}
+            </div>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 };

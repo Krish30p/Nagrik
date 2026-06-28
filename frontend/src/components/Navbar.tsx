@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { authService } from "../services/auth";
 import { dbService, subscribeToCollection } from "../services/db";
 import { User, Notification } from "../types";
-import { Shield, Bell, Award, Map, BarChart3, PlusCircle, LogOut } from "lucide-react";
+import { Shield, Bell, Award, Map, BarChart3, PlusCircle, LogOut, FileText } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
@@ -12,6 +12,7 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const userId = user?.id;
+  const isStaffUser = authService.isStaff();
 
   useEffect(() => {
     // Auth Listener
@@ -58,66 +59,74 @@ export const Navbar: React.FC = () => {
 
   const linkClass = (path: string) => {
     const isActive = location.pathname === path;
-    return `flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-250 ${
+    return `flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-[11px] uppercase tracking-wide transition-all duration-150 ${
       isActive
-        ? "bg-primary text-white shadow-sm"
-        : "text-slate-600 hover:text-primary hover:bg-slate-100"
+        ? "bg-seal text-paper border border-seal"
+        : "text-ink-muted hover:text-seal hover:bg-seal-tint/40 border border-transparent"
     }`;
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
-      <div className="government-banner"></div>
+    <header className="sticky top-0 z-40 bg-paper-raised border-b border-rule">
+      <div className="border-t-4 border-seal"></div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-14">
           {/* Logo Brand */}
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="bg-primary text-white p-2 rounded-lg flex items-center justify-center">
-              <Shield className="h-5 w-5" />
+            <div className="bg-seal text-paper p-1.5 rounded flex items-center justify-center border border-seal">
+              <Shield className="h-4.5 w-4.5" />
             </div>
             <div>
-              <span className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-1.5">
-                Nagrik
-                <span className="bg-teal-50 border border-teal-200 text-teal-700 text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Civic AI
-                </span>
+              <span className="text-lg font-display font-bold tracking-tight text-ink flex items-center gap-1.5">
+                NAGRIK
+                {isStaffUser && (
+                  <span className="bg-seal-tint border border-seal/30 text-seal text-[9px] font-mono px-1.5 py-0.2 rounded uppercase font-bold tracking-widest">
+                    STAFF
+                  </span>
+                )}
               </span>
-              <p className="text-[10px] text-slate-400 font-medium">AI Civic Operations Platform</p>
+              <p className="font-mono text-[9px] text-ink-muted leading-none">AI CIVIC LEDGER PLATFORM</p>
             </div>
           </Link>
 
           {/* Navigation Links */}
           {user && (
-            <nav className="hidden md:flex space-x-2">
+            <nav className="hidden md:flex space-x-1.5">
               <Link to="/" className={linkClass("/")}>
-                <BarChart3 className="h-4 w-4" />
-                Dashboard
-              </Link>
-              <Link to="/map" className={linkClass("/map")}>
-                <Map className="h-4 w-4" />
+                <Map className="h-3.5 w-3.5" />
                 City Map
               </Link>
+              {isStaffUser && (
+                <Link to="/dashboard" className={linkClass("/dashboard")}>
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Operations Ledger
+                </Link>
+              )}
               <Link to="/report" className={linkClass("/report")}>
-                <PlusCircle className="h-4 w-4" />
-                Report Issue
+                <PlusCircle className="h-3.5 w-3.5" />
+                Report File
+              </Link>
+              <Link to="/my-reports" className={linkClass("/my-reports")}>
+                <FileText className="h-3.5 w-3.5" />
+                My Files
               </Link>
               <Link to="/leaderboard" className={linkClass("/leaderboard")}>
-                <Award className="h-4 w-4" />
-                Leaderboard
+                <Award className="h-3.5 w-3.5" />
+                Registry Rank
               </Link>
             </nav>
           )}
 
           {/* User Section & Notifications */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {user ? (
               <>
                 {/* Gamified Score */}
-                <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-                  <Award className="h-4 w-4 text-secondary" />
-                  <div className="text-left leading-none">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Level {user.level}</p>
-                    <p className="text-xs font-bold text-slate-700">{user.points} Points</p>
+                <div className="hidden sm:flex items-center gap-2 bg-paper border border-rule px-2.5 py-1 rounded">
+                  <Award className="h-3.5 w-3.5 text-secondary" />
+                  <div className="text-left leading-none font-mono">
+                    <p className="text-[8px] font-bold text-ink-muted uppercase tracking-wider">LEVEL {user.level}</p>
+                    <p className="text-[10px] font-bold text-ink">{user.points} PTS</p>
                   </div>
                 </div>
 
@@ -125,50 +134,50 @@ export const Navbar: React.FC = () => {
                 <div className="relative">
                   <button
                     onClick={() => setShowNotifDropdown(!showNotifDropdown)}
-                    className="relative p-2 rounded-full text-slate-500 hover:text-primary hover:bg-slate-100 transition-colors"
+                    className="relative p-1.5 rounded text-ink-muted hover:text-seal hover:bg-seal-tint/40 transition-colors"
                   >
-                    <Bell className="h-5 w-5" />
+                    <Bell className="h-4.5 w-4.5" />
                     {unreadCount > 0 && (
-                      <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white ring-2 ring-white">
+                      <span className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-status-escalated text-[8px] font-bold text-paper ring-1 ring-paper">
                         {unreadCount}
                       </span>
                     )}
                   </button>
 
                   {showNotifDropdown && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
-                      <div className="p-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Notifications</span>
-                        <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-semibold">
-                          {unreadCount} unread
+                    <div className="absolute right-0 mt-2 w-80 bg-paper-raised border border-rule rounded shadow-lg z-50 overflow-hidden font-ui">
+                      <div className="p-2 border-b border-rule bg-paper flex justify-between items-center font-mono">
+                        <span className="text-[10px] font-bold text-ink uppercase">NOTIFICATIONS</span>
+                        <span className="text-[9px] bg-rule/50 text-ink-muted px-1.5 py-0.2 rounded font-semibold">
+                          {unreadCount} UNREAD
                         </span>
                       </div>
                       <div className="max-h-72 overflow-y-auto">
                         {notifications.length === 0 ? (
-                          <div className="p-4 text-center text-xs text-slate-400">
+                          <div className="p-4 text-center text-xs text-ink-muted italic">
                             No notifications yet.
                           </div>
                         ) : (
                           notifications.map((notif) => (
                             <div
                               key={notif.id}
-                              className={`p-3 border-b border-slate-50 hover:bg-slate-50 transition-colors text-left flex gap-2 cursor-pointer ${
-                                !notif.read ? "bg-teal-50/50" : ""
+                              className={`p-3 border-b border-rule/50 hover:bg-paper transition-colors text-left flex gap-2 cursor-pointer ${
+                                !notif.read ? "bg-seal-tint/20" : ""
                               }`}
                             >
                               <div className="flex-1">
-                                <h4 className="text-xs font-bold text-slate-800">{notif.title}</h4>
-                                <p className="text-[11px] text-slate-500 mt-0.5">{notif.body}</p>
-                                <span className="text-[9px] text-slate-400 mt-1 block">
+                                <h4 className="text-xs font-bold text-ink">{notif.title}</h4>
+                                <p className="text-[11px] text-ink-muted mt-0.5 leading-tight">{notif.body}</p>
+                                <span className="font-mono text-[9px] text-ink-muted/70 mt-1 block">
                                   {new Date(notif.createdAt).toLocaleTimeString()}
                                 </span>
                               </div>
                               {!notif.read && (
                                 <button
                                   onClick={(e) => handleMarkAsRead(notif.id, e)}
-                                  className="text-[10px] text-primary hover:underline font-medium self-start"
+                                  className="text-[9px] font-mono text-secondary hover:underline self-start uppercase"
                                 >
-                                  Read
+                                  Mark
                                 </button>
                               )}
                             </div>
@@ -180,29 +189,29 @@ export const Navbar: React.FC = () => {
                 </div>
 
                 {/* User avatar and logout */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <img
                     src={user.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(user.name)}`}
                     alt={user.name}
-                    className="h-9 w-9 rounded-full bg-slate-100 border border-slate-200"
+                    className="h-8 w-8 rounded bg-paper border border-rule"
                   />
-                  <div className="hidden lg:block text-left leading-none">
-                    <p className="text-xs font-bold text-slate-800">{user.name}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{user.email}</p>
+                  <div className="hidden lg:block text-left leading-none font-mono">
+                    <p className="text-[10px] font-bold text-ink">{user.name.split(" ")[0].toUpperCase()}</p>
+                    <p className="text-[8px] text-ink-muted mt-0.5">{user.email.substring(0, 15)}...</p>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="p-2 rounded-full text-slate-400 hover:text-danger hover:bg-red-50 transition-all"
+                    className="p-1.5 rounded text-ink-muted hover:text-status-escalated hover:bg-status-escalated/10 transition-all"
                     title="Log Out"
                   >
-                    <LogOut className="h-4.5 w-4.5" />
+                    <LogOut className="h-4 w-4" />
                   </button>
                 </div>
               </>
             ) : (
               <Link
                 to="/login"
-                className="bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-hover shadow-sm"
+                className="bg-seal text-paper text-xs font-mono uppercase tracking-wide px-3 py-1.5 rounded border border-seal hover:bg-seal/90"
               >
                 Log In
               </Link>

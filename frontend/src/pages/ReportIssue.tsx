@@ -82,7 +82,7 @@ export const ReportIssue: React.FC = () => {
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: "mapbox://styles/mapbox/light-v11",
       center: [longitude, latitude],
       zoom: 13,
     });
@@ -309,101 +309,143 @@ export const ReportIssue: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 text-ink font-ui">
       {/* Step Overlay */}
       {agentStep !== "idle" && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl text-center space-y-6">
+        <div className="fixed inset-0 z-50 bg-[#1B1B16]/80 flex items-center justify-center p-4">
+          <div className="bg-paper-raised border border-rule rounded p-6 md:p-8 max-w-md w-full shadow-lg text-center space-y-6">
             <div className="flex justify-center">
               {agentStep === "done" ? (
-                <div className="h-16 w-16 bg-green-50 border border-green-200 text-green-600 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="h-8 w-8" />
+                <div className="stamp-oval text-status-resolved border-status-resolved font-mono text-xs px-3 py-1 bg-paper font-bold rotate-[-3deg]">
+                  LOOP VERIFIED
                 </div>
               ) : (
-                <div className="h-16 w-16 bg-teal-50 text-primary border border-teal-100 rounded-full flex items-center justify-center animate-spin">
-                  <Sparkles className="h-8 w-8" />
+                <div className="h-10 w-10 text-secondary border border-rule bg-paper rounded-full flex items-center justify-center animate-spin">
+                  <Sparkles className="h-5 w-5" />
                 </div>
               )}
             </div>
 
             <div className="space-y-2 text-left">
-              <h3 className="text-lg font-bold text-slate-800 text-center">
+              <h3 className="text-sm font-bold uppercase font-mono tracking-wider text-center">
                 {agentStep === "done" ? "Platform Loop Completed" : "Cooperative AI Agents Processing"}
               </h3>
-              <p className="text-xs text-slate-500 text-center font-medium leading-relaxed">
-                {loadingText}
+              <p className="text-xs text-ink-muted text-center font-medium leading-relaxed font-mono">
+                {loadingText.toUpperCase()}
               </p>
             </div>
 
             {/* Stepper progress indicator */}
-            <div className="flex items-center justify-center gap-1">
-              <span className={`h-1.5 w-8 rounded-full bg-primary`}></span>
-              <span className={`h-1.5 w-8 rounded-full ${agentStep === "verify" || agentStep === "route" || agentStep === "done" ? "bg-primary" : "bg-slate-200"}`}></span>
-              <span className={`h-1.5 w-8 rounded-full ${agentStep === "route" || agentStep === "done" ? "bg-primary" : "bg-slate-200"}`}></span>
-              <span className={`h-1.5 w-8 rounded-full ${agentStep === "done" ? "bg-emerald-500" : "bg-slate-200"}`}></span>
+            <div className="flex items-center justify-center gap-1.5 pt-2">
+              <span className={`h-1.5 w-6 rounded-none bg-primary`}></span>
+              <span className={`h-1.5 w-6 rounded-none ${agentStep === "verify" || agentStep === "route" || agentStep === "done" ? "bg-primary" : "bg-rule"}`}></span>
+              <span className={`h-1.5 w-6 rounded-none ${agentStep === "route" || agentStep === "done" ? "bg-primary" : "bg-rule"}`}></span>
+              <span className={`h-1.5 w-6 rounded-none ${agentStep === "done" ? "bg-status-resolved" : "bg-rule"}`}></span>
             </div>
           </div>
         </div>
       )}
 
       {/* Preset Demos */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8 text-left shadow-sm">
-        <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          Quick Demo Presets
+      <div className="bg-paper border border-rule rounded p-5 mb-8 text-left">
+        <h3 className="text-xs font-bold text-ink uppercase tracking-wider mb-2 flex items-center gap-1.5 font-mono">
+          <Sparkles className="h-3.5 w-3.5 text-secondary" />
+          QUICK MUNICIPAL PRESETS
         </h3>
-        <p className="text-[11px] text-slate-500 leading-tight mb-4">
-          Select a preset to auto-fill the report form with mock coordinates and description to verify our AI Intake & duplicate verification agents immediately.
+        <p className="text-[10px] text-ink-muted leading-relaxed mb-4">
+          Select a preset configuration to automatically fill the report with mock data coordinates and verify the sequential agent intake and deduplication logic immediately.
         </p>
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-wrap gap-2">
           {DEMO_PRESETS.map((preset) => (
             <button
               key={preset.name}
               onClick={() => handleSelectPreset(preset)}
               type="button"
-              className="bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 py-2 px-3 rounded-lg shadow-sm transition-all"
+              className="bg-paper-raised hover:bg-surface-container border border-rule text-xs font-mono font-bold text-ink py-2 px-3 rounded shadow-sm transition-all"
             >
-              {preset.name}
+              {preset.name.toUpperCase()}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="bg-surface border border-outline-variant rounded-2xl shadow-sm overflow-hidden text-left flex flex-col">
-        {/* Progress Bar Header */}
-        <div className="bg-surface-bright border-b border-outline-variant px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-bold text-label-bold">1</div>
-            <span className="font-label-bold text-label-bold text-on-surface hidden md:inline">Report Details</span>
-          </div>
-          <div className="flex-grow max-w-[40px] md:max-w-[100px] h-px bg-outline-variant mx-4"></div>
-          <div className="flex items-center gap-2 opacity-50">
-            <div className="w-8 h-8 rounded-full border border-outline-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">2</div>
-            <span className="font-label-bold text-label-bold text-on-surface-variant hidden md:inline">Location</span>
-          </div>
-          <div className="flex-grow max-w-[40px] md:max-w-[100px] h-px bg-outline-variant mx-4"></div>
-          <div className="flex items-center gap-2 opacity-50">
-            <div className="w-8 h-8 rounded-full border border-outline-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">3</div>
-            <span className="font-label-bold text-label-bold text-on-surface-variant hidden md:inline">Review</span>
-          </div>
+      {/* Main Form container */}
+      <div className="relative bg-paper-raised p-6 md:p-10 border border-rule shadow-sm overflow-hidden text-left flex flex-col">
+        <div className="absolute top-4 right-4 opacity-[0.03] select-none pointer-events-none transform rotate-12">
+          <span className="font-display text-secondary text-[80px] font-bold tracking-widest">FILED</span>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 md:p-8 flex flex-col gap-8">
-          {/* 1. Evidence Capture */}
-          <section>
-            <h2 className="font-headline-md text-headline-md text-on-surface mb-2">Evidence Capture</h2>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mb-4">Provide clear photos or videos of the issue.</p>
-            
+        {/* Issue File Header */}
+        <div className="relative mb-8 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-baseline gap-2 mb-4">
+            <div>
+              <span className="font-mono text-[9px] uppercase text-ink-muted tracking-wider">FORM REGISTRY: NAG-2024-CRX</span>
+              <h2 className="font-display text-2xl font-bold text-ink mt-1">INCIDENT REPORT</h2>
+            </div>
+            <div className="stamp-oval text-status-reported border-status-reported font-mono text-[10px] font-bold rotate-[-2deg] px-2.5 py-0.5">
+              STATUS: DRAFT
+            </div>
+          </div>
+          {/* Double Rule Separator */}
+          <div className="w-full h-px bg-rule"></div>
+          <div className="w-full h-px bg-rule mt-[2px]"></div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          
+          {/* Form details section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase text-ink-muted tracking-wide block font-mono">Jurisdiction Zone</label>
+              <select className="w-full bg-paper border border-rule rounded p-2.5 focus:outline-none font-mono text-xs">
+                <option>METROPOLITAN CENTRAL - DISTRICT 04</option>
+                <option>EAST CORRIDOR PRECINCT</option>
+                <option>WEST INDUSTRIAL BASIN</option>
+                <option>NORTH HERITAGE ESTATES</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase text-ink-muted tracking-wide block font-mono">Incident Ward Coverage</label>
+              <select
+                value={ward}
+                onChange={(e) => setWard(e.target.value)}
+                className="w-full bg-paper border border-rule text-ink text-xs rounded p-2.5 focus:outline-none font-mono"
+              >
+                <option value="Ward 1">WARD 1</option>
+                <option value="Ward 2">WARD 2</option>
+                <option value="Ward 3">WARD 3</option>
+                <option value="Ward 4">WARD 4</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase text-ink-muted tracking-wide block font-mono">Issue Details & Account</label>
+            <p className="text-[10px] text-ink-muted italic mb-1">Provide a factual, objective account of the incident for the municipal ledger.</p>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe observations, landmarks, and environmental conditions..."
+              rows={4}
+              required
+              className="w-full border border-rule rounded p-3 text-xs bg-paper focus:outline-none leading-relaxed"
+            ></textarea>
+          </div>
+
+          {/* Evidence Capture */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase text-ink-muted tracking-wide block font-mono">Evidence Attachment</label>
             {!imageUrl ? (
               <div 
-                className="border-2 border-dashed border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container-low hover:border-primary transition-colors cursor-pointer flex flex-col items-center justify-center py-12 px-4 group"
+                className="border border-dashed border-rule rounded bg-paper hover:bg-surface-container-low transition-colors cursor-pointer flex flex-col items-center justify-center p-8 group"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center mb-4 group-hover:bg-primary-container group-hover:text-on-primary-container transition-colors">
-                  <ImageIcon className="h-8 w-8 text-on-surface-variant group-hover:text-on-primary-container" />
+                <div className="w-12 h-12 rounded bg-paper border border-rule flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <ImageIcon className="h-5 w-5 text-ink-muted" />
                 </div>
-                <p className="font-body-md text-body-md text-on-surface font-medium text-center">Click to upload evidence</p>
-                <p className="font-body-sm text-body-sm text-on-surface-variant text-center mt-2">JPG, PNG, MP4 up to 50MB</p>
+                <p className="font-mono text-[10px] text-ink font-bold uppercase">Drag evidence files or click to scan</p>
+                <p className="text-[9px] text-ink-muted mt-1">Accepted formats: JPG, PDF, PNG (Max 10MB per file)</p>
                 
                 <input
                   type="file"
@@ -415,139 +457,141 @@ export const ReportIssue: React.FC = () => {
                 />
               </div>
             ) : (
-              <div className="relative max-h-64 overflow-hidden rounded-xl border border-outline-variant">
+              <div className="relative max-h-60 overflow-hidden rounded border border-rule bg-paper">
                 <button
                   type="button"
                   onClick={() => setImageUrl("")}
-                  className="absolute top-3 right-3 bg-inverse-surface/70 text-inverse-on-surface hover:bg-inverse-surface rounded-full p-1.5 transition-all z-10"
+                  className="absolute top-2 right-2 bg-ink/75 text-paper hover:bg-ink rounded-full p-1 transition-all z-10"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
                 {imageUrl.includes(".mp4") || imageUrl.includes("video") ? (
-                  <video src={imageUrl} controls className="w-full h-full object-cover max-h-64" />
+                  <video src={imageUrl} controls className="w-full h-full object-cover max-h-60" />
                 ) : (
-                  <img src={imageUrl} alt="Incident preview" className="w-full h-64 object-cover" />
+                  <img src={imageUrl} alt="Evidence registry preview" className="w-full h-60 object-contain" />
                 )}
               </div>
             )}
             {isUploading && (
-              <p className="text-[10px] text-primary animate-pulse font-bold mt-2">Uploading Media to GridFS...</p>
+              <p className="text-[9px] text-secondary animate-pulse font-mono font-bold">UPLOADING MEDIA CONTENT TO DATABASE...</p>
             )}
-          </section>
+          </div>
 
-          {/* 2. Voice Note */}
-          <section>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-headline-md text-headline-md text-on-surface">Voice Note <span className="font-body-sm text-body-sm text-on-surface-variant font-normal">(Optional)</span></h2>
-            </div>
-            <div className="border border-outline-variant rounded-lg p-4 flex flex-col gap-3 bg-surface-container-lowest">
+          {/* Voice Note */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase text-ink-muted tracking-wide block font-mono">Voice Transcription Entry</label>
+            <div className="border border-rule rounded p-4 flex flex-col gap-3 bg-paper">
               <div className="flex items-center gap-4">
                 <button 
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
                   disabled={isUploading}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
-                    isRecording ? 'bg-error-container text-on-error-container animate-pulse' : 'bg-surface-container hover:bg-surface-variant text-on-surface-variant'
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 border ${
+                    isRecording 
+                      ? 'bg-status-escalated/15 border-status-escalated text-status-escalated animate-pulse' 
+                      : 'bg-paper-raised border-rule text-ink hover:bg-surface-container'
                   }`}
                 >
-                  <Mic className="h-6 w-6" />
+                  <Mic className="h-5 w-5" />
                 </button>
                 <div className="flex-grow flex items-center gap-2">
-                  <div className="h-2 flex-grow bg-surface-variant rounded-full overflow-hidden">
-                    {isRecording && <div className="h-full bg-primary animate-pulse w-full"></div>}
+                  <div className="h-1.5 flex-grow bg-rule overflow-hidden rounded-none">
+                    {isRecording && <div className="h-full bg-secondary animate-pulse w-full"></div>}
                   </div>
-                  <span className="font-label-md text-label-md text-on-surface-variant">
-                    {isRecording ? "Recording..." : (voiceNoteUrl ? "Recorded" : "00:00")}
+                  <span className="font-mono text-[9px] text-ink-muted">
+                    {isRecording ? "RECORDING..." : (voiceNoteUrl ? "RECORDED" : "00:00")}
                   </span>
                 </div>
               </div>
               
               {voiceText && (
-                <div className="bg-surface-container-low p-3 rounded-lg border border-outline-variant">
-                  <p className="text-[11px] text-on-surface-variant italic leading-relaxed">
+                <div className="bg-paper-raised p-2.5 rounded border border-rule">
+                  <p className="text-[10px] text-ink-muted italic leading-relaxed">
                     &ldquo;{voiceText}&rdquo;
                   </p>
                 </div>
               )}
             </div>
-          </section>
+          </div>
 
-          {/* 3. Location & Details */}
-          <section>
-            <h2 className="font-headline-md text-headline-md text-on-surface mb-2">Location & Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div className="border border-outline-variant rounded-lg overflow-hidden flex flex-col">
-                <div className="h-32 w-full relative overflow-hidden">
-                  <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+          {/* Location details & GIS verification */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase text-ink-muted tracking-wide block font-mono">GIS Coordinates & Map pin</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="border border-rule rounded overflow-hidden flex flex-col h-40">
+                <div className="flex-grow relative overflow-hidden bg-[#f7f3ea]">
+                  <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ minHeight: '120px' }} />
                   <button 
                     type="button"
                     onClick={handleGPSAttach}
-                    className="absolute bottom-2 right-2 bg-surface-container-lowest border border-outline-variant rounded-md px-2 py-1.5 flex items-center gap-1.5 shadow-sm hover:bg-surface-container-low transition-colors z-10"
+                    className="absolute bottom-2 right-2 bg-paper-raised border border-rule px-2 py-1 flex items-center gap-1 shadow-sm hover:bg-surface-container transition-colors z-10 font-mono text-[9px]"
                   >
-                    <Navigation className="h-3.5 w-3.5 text-primary" />
-                    <span className="font-label-md text-label-md">Auto GPS</span>
+                    <Navigation className="h-3 w-3 text-secondary" />
+                    <span>GPS LOCATE</span>
                   </button>
-                </div>
-                <div className="p-3 bg-surface-container-lowest border-t border-outline-variant flex items-center gap-3">
-                  <Navigation className="h-4 w-4 text-on-surface-variant" />
-                  <div className="flex-grow flex gap-2">
-                    <input
-                      type="number" step="0.000001"
-                      value={latitude} onChange={(e) => setLatitude(parseFloat(e.target.value))}
-                      className="w-1/2 bg-transparent border-none p-0 focus:ring-0 font-body-sm text-body-sm text-on-surface outline-none"
-                    />
-                    <input
-                      type="number" step="0.000001"
-                      value={longitude} onChange={(e) => setLongitude(parseFloat(e.target.value))}
-                      className="w-1/2 bg-transparent border-none p-0 focus:ring-0 font-body-sm text-body-sm text-on-surface outline-none"
-                    />
-                  </div>
                 </div>
               </div>
               
-              <div className="flex flex-col gap-3">
-                <div className="flex-grow">
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe the issue..."
-                    rows={4}
-                    required
-                    className="w-full h-full min-h-[100px] border border-outline-variant rounded-lg p-3 font-body-md text-body-md bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none transition-colors"
-                  ></textarea>
+              <div className="flex flex-col justify-between gap-3 font-mono text-[10px]">
+                <div className="bg-paper border border-rule p-3 flex flex-col gap-1.5">
+                  <span className="text-ink-muted uppercase">MANUAL COORDINATES OVERRIDE</span>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <span className="text-[8px] text-ink-muted">LATITUDE</span>
+                      <input
+                        type="number" step="0.000001"
+                        value={latitude} onChange={(e) => setLatitude(parseFloat(e.target.value))}
+                        className="w-full bg-transparent border-b border-rule p-0 pb-1 text-ink focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-[8px] text-ink-muted">LONGITUDE</span>
+                      <input
+                        type="number" step="0.000001"
+                        value={longitude} onChange={(e) => setLongitude(parseFloat(e.target.value))}
+                        className="w-full bg-transparent border-b border-rule p-0 pb-1 text-ink focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <select
-                    value={ward}
-                    onChange={(e) => setWard(e.target.value)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant text-on-surface text-sm rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="Ward 1">Ward 1</option>
-                    <option value="Ward 2">Ward 2</option>
-                    <option value="Ward 3">Ward 3</option>
-                    <option value="Ward 4">Ward 4</option>
-                  </select>
+
+                <div className="text-[9px] text-ink-muted leading-relaxed">
+                  Pin location must be accurate within Delhi metropolitan jurisdiction. Click on the map or drag the marker to specify exact incident coordinates.
                 </div>
               </div>
             </div>
-          </section>
+          </div>
 
-          {/* Action Bar */}
-          <div className="-mx-6 md:-mx-8 -mb-6 md:-mb-8 border-t border-outline-variant bg-surface-container-low/50 p-6 flex items-center justify-between mt-4">
+          {/* Declaration Statement */}
+          <div className="p-4 bg-paper border-l-4 border-rule">
+            <div className="flex gap-3">
+              <input 
+                className="mt-0.5 w-4 h-4 border-rule text-secondary focus:ring-0 rounded-none bg-paper-raised" 
+                id="declaration" 
+                type="checkbox"
+                required
+              />
+              <label className="font-mono text-[9px] leading-relaxed text-ink-muted uppercase" htmlFor="declaration">
+                <strong className="text-ink">Citizen Declaration:</strong> I hereby certify that the information provided in this report is accurate. I understand that filing a knowingly false municipal record may result in legal escalation under Civic Ordinance 84-C. This document shall serve as a permanent record.
+              </label>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="pt-6 flex flex-col md:flex-row items-center justify-end gap-3 border-t border-rule border-dashed">
             <button 
               type="button"
               onClick={() => navigate("/")}
-              className="px-6 py-3 rounded-lg font-label-bold text-label-bold text-on-surface-variant hover:bg-surface-variant transition-colors"
+              className="w-full md:w-auto px-8 py-3 border border-ink text-ink font-mono uppercase tracking-wider text-[11px] hover:bg-surface-container rounded-none transition-all"
             >
               Cancel
             </button>
             <button 
               type="submit"
               disabled={isUploading}
-              className="px-6 py-3 rounded-lg font-label-bold text-label-bold bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2 disabled:bg-surface-variant disabled:text-on-surface-variant"
+              className="w-full md:w-auto px-10 py-3 bg-secondary text-paper font-mono uppercase tracking-wider text-[11px] hover:brightness-105 active:scale-95 transition-all rounded-none disabled:opacity-50"
             >
-              Submit Report
-              <Send className="h-4 w-4" />
+              File Official Record
             </button>
           </div>
         </form>

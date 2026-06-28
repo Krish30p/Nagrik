@@ -1,65 +1,72 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 @plugin "@tailwindcss/forms";
 @plugin "@tailwindcss/container-queries";
 
 @theme {
-  --color-inverse-primary: #80d8a9;
-  --color-secondary-fixed: #ffdfa0;
-  --color-on-surface-variant: #3f4942;
-  --color-on-surface: #1b1c1a;
-  --color-on-tertiary-fixed: #0d1c2e;
-  --color-surface-container-highest: #e4e2de;
-  --color-on-error-container: #93000a;
-  --color-primary: #00603d;
-  --color-on-primary-fixed-variant: #005234;
-  --color-tertiary: #465468;
-  --color-surface-bright: #fbf9f5;
-  --color-error-container: #ffdad6;
-  --color-on-primary: #ffffff;
-  --color-on-tertiary-fixed-variant: #3a485b;
-  --color-tertiary-container: #5e6c81;
-  --color-secondary: #795900;
-  --color-surface-container-low: #f5f3ef;
-  --color-surface-container-lowest: #ffffff;
-  --color-primary-fixed: #9cf5c4;
-  --color-on-primary-fixed: #002112;
-  --color-surface-tint: #006c46;
-  --color-inverse-on-surface: #f2f0ed;
-  --color-on-secondary-fixed: #261a00;
-  --color-primary-container: #1a7a52;
-  --color-on-secondary-fixed-variant: #5c4300;
-  --color-on-secondary-container: #6d5000;
-  --color-surface-dim: #dbdad6;
-  --color-on-primary-container: #acffd0;
-  --color-inverse-surface: #30312e;
-  --color-tertiary-fixed: #d5e3fc;
-  --color-background: #fbf9f5;
-  --color-surface-container-high: #eae8e4;
-  --color-surface: #fbf9f5;
-  --color-secondary-container: #ffbf00;
-  --color-primary-fixed-dim: #80d8a9;
-  --color-secondary-fixed-dim: #fbbc00;
-  --color-surface-variant: #e4e2de;
-  --color-on-background: #1b1c1a;
-  --color-outline: #6f7a72;
-  --color-on-tertiary: #ffffff;
-  --color-error: #ba1a1a;
-  --color-tertiary-fixed-dim: #b9c7df;
-  --color-outline-variant: #bec9c0;
-  --color-surface-container: #efeeea;
-  --color-on-error: #ffffff;
-  --color-on-secondary: #ffffff;
-  --color-on-tertiary-container: #e4edff;
-  --font-body-lg: 'Inter', sans-serif;
-  --font-body-sm: 'Inter', sans-serif;
-  --font-label-bold: 'Inter', sans-serif;
-  --font-body-md: 'Inter', sans-serif;
-  --font-label-md: 'Inter', sans-serif;
-  --font-headline-lg: 'Inter', sans-serif;
-  --font-headline-md: 'Inter', sans-serif;
-  --font-headline-lg-mobile: 'Inter', sans-serif;
+  /* Base / Paper */
+  --color-paper: #F7F3EA;
+  --color-paper-raised: #FFFFFF;
+  --color-ink: #1B1B16;
+  --color-ink-muted: #5C5A4E;
+  --color-rule: #DDD6C4;
+
+  /* Brand */
+  --color-seal: #1F3A33;
+  --color-seal-tint: #E7EEE9;
+  --color-terracotta: #C2542D;
+  --color-terracotta-tint: #F6E3D8;
+  --color-turmeric: #D9A02B;
+
+  /* Standard overrides to map to our brand tokens */
+  --color-primary: #1F3A33;
+  --color-primary-container: #E7EEE9;
+  --color-on-primary-container: #1F3A33;
+  --color-secondary: #C2542D;
+  --color-secondary-container: #F6E3D8;
+  --color-on-secondary-container: #C2542D;
+  --color-background: #F7F3EA;
+  --color-surface: #F7F3EA;
+  --color-on-surface: #1B1B16;
+  --color-on-background: #1B1B16;
+  --color-on-surface-variant: #5C5A4E;
+  --color-outline-variant: #DDD6C4;
+  --color-error: #A23B2E;
+  --color-danger: #A23B2E;
+  --color-surface-container-lowest: #FFFFFF;
+  --color-surface-container-low: #F7F3EA;
+  --color-surface-container-high: #ECE8DF;
+
+  /* Status */
+  --color-status-verifying: #8A7F66;
+  --color-status-reported: #B8862B;
+  --color-status-routed: #2D5A8C;
+  --color-status-in-progress: #1F3A33;
+  --color-status-escalated: #A23B2E;
+  --color-status-resolved: #4A6B4E;
+  --color-status-duplicate: #9A958A;
+
+  /* Severity */
+  --color-severity-low: #B7C4A3;
+  --color-severity-moderate: #D9A02B;
+  --color-severity-high: #C2542D;
+  --color-severity-critical: #A23B2E;
+
+  /* Font Families */
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-ui: "IBM Plex Sans", -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  /* Compatibility font families */
+  --font-body-lg: "IBM Plex Sans", sans-serif;
+  --font-body-sm: "IBM Plex Sans", sans-serif;
+  --font-label-bold: "IBM Plex Mono", monospace;
+  --font-body-md: "IBM Plex Sans", sans-serif;
+  --font-label-md: "IBM Plex Mono", monospace;
+  --font-headline-lg: "Source Serif 4", serif;
+  --font-headline-md: "Source Serif 4", serif;
+  --font-headline-lg-mobile: "Source Serif 4", serif;
 }
 
 body {

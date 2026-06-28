@@ -159,11 +159,11 @@ export const dbService = {
           console.error(err);
         }
 
-        if (attempts > 30) {
+        if (attempts > 20) {
           clearInterval(interval);
           reject(new Error("AI Agent processing timed out."));
         }
-      }, 1000);
+      }, 3000);
     });
   },
 

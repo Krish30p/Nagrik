@@ -2,14 +2,16 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { dbService, subscribeToCollection } from "../services/db";
 import { authService } from "../services/auth";
-import { Issue, Department } from "../types";
+import { Issue, Department, Complaint } from "../types";
 import { IssueTimeline } from "../components/IssueTimeline";
+import { StatusStamp } from "../components/StatusStamp";
 import { ArrowLeft, MapPin, Calendar, User, Phone, Mail, Award, CheckCircle, Wrench } from "lucide-react";
 
 export const IssueDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [issue, setIssue] = useState<Issue | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
+  const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
 
   const navigate = useNavigate();
@@ -20,17 +22,16 @@ export const IssueDetails: React.FC = () => {
     if (item) {
       setIssue(item);
 
-      if (item.departmentId) {
-        const departments = await dbService.getDepartments();
-        const dept = departments.find((d) => d.id === item.departmentId);
-        if (dept) setDepartment(dept);
-      }
-
       const complaints = await dbService.getComplaints();
       const comp = complaints.find((c) => c.issueId === item.id);
-      if (comp?.departmentId && !item.departmentId) {
+      if (comp) {
+        setComplaint(comp);
         const departments = await dbService.getDepartments();
         const dept = departments.find((d) => d.id === comp.departmentId);
+        if (dept) setDepartment(dept);
+      } else if (item.departmentId) {
+        const departments = await dbService.getDepartments();
+        const dept = departments.find((d) => d.id === item.departmentId);
         if (dept) setDepartment(dept);
       }
     }
@@ -100,132 +101,168 @@ export const IssueDetails: React.FC = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-64px)] bg-background text-on-surface font-body-md">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-56px)] bg-background text-ink font-ui">
       {/* Header Back Link */}
       <div className="flex items-center gap-2 mb-6">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 hover:bg-surface-variant rounded-lg text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1 text-sm font-label-bold"
+          className="px-3 py-1.5 hover:bg-seal-tint/40 rounded border border-rule text-ink-muted hover:text-seal transition-colors flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider"
         >
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to registry
         </button>
       </div>
+
+      {/* Case Header Section */}
+      <section className="relative mb-8 text-left">
+        {/* FILED Watermark */}
+        <div className="absolute -top-4 right-0 opacity-[0.03] select-none pointer-events-none transform -rotate-12">
+          <span className="font-display text-secondary text-[80px] font-bold tracking-widest">FILED</span>
+        </div>
+        <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-2">
+          <div>
+            <h2 className="font-display text-2xl md:text-3xl font-bold text-ink leading-tight">{issue.title}</h2>
+            <p className="font-mono text-[10px] text-secondary tracking-wider mt-1 uppercase font-bold">
+              WARD COVERAGE: {issue.ward.toUpperCase()}
+            </p>
+          </div>
+          <div className="text-left md:text-right font-mono shrink-0">
+            <p className="text-xs text-ink-muted font-bold">NGK-{issue.id.substring(0, 8).toUpperCase()}</p>
+            <p className="text-[10px] text-ink-muted/50">FILE_REF_04X</p>
+          </div>
+        </div>
+        <div className="double-rule-bottom w-full mt-4"></div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Ticket Details Column */}
         <div className="lg:col-span-2 space-y-6 text-left">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
-            <div className="p-6 md:p-8">
-              {/* Badges */}
-              <div className="flex flex-wrap items-center gap-2.5 mb-4 font-label-md">
-                <span className="text-xs uppercase font-bold tracking-wider text-primary bg-primary-container/20 px-2.5 py-1 rounded-md border border-primary/20">
-                  {issue.category}
-                </span>
-                <span className={`text-xs font-bold px-2 py-0.5 border rounded ${issue.severity === 'CRITICAL' || issue.severity === 'HIGH' ? 'bg-error-container text-on-error-container border-error' : 'bg-surface-container text-on-surface-variant border-outline-variant'}`}>
-                  {issue.severity} Severity
-                </span>
-                <span className={`text-xs font-bold px-2 py-0.5 border rounded ${issue.status === 'RESOLVED' ? 'bg-primary-container text-on-primary-container border-primary' : 'bg-surface-container text-on-surface-variant border-outline-variant'}`}>
-                  {issue.status}
-                </span>
+          
+          {/* Status & Map Area */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-paper-raised border border-rule rounded-md p-4 flex flex-col justify-center items-center relative overflow-hidden h-28">
+              <div className="absolute inset-0 opacity-5 pointer-events-none">
+                <div className="w-full h-full bg-[radial-gradient(#1B1B16_1px,transparent_1px)] [background-size:12px_12px]"></div>
               </div>
-
-              {/* Title */}
-              <h1 className="font-headline-lg text-on-surface mb-4">
-                {issue.title}
-              </h1>
-
-              {/* Citizen Details */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-on-surface-variant border-b border-outline-variant pb-5 mb-5 font-body-sm">
-                <span className="flex items-center gap-1.5">
-                  <User className="h-4 w-4" />
-                  Reported by: <span className="font-bold text-on-surface">{issue.createdByName || "Citizen"}</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4" />
-                  Date Logged: <span className="font-bold text-on-surface">{new Date(issue.createdAt).toLocaleString()}</span>
-                </span>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2.5 mb-6">
-                <h3 className="font-label-bold text-on-surface-variant uppercase tracking-wider">Incident Details</h3>
-                <p className="font-body-md text-on-surface leading-relaxed bg-surface-container-low border border-outline-variant p-4 rounded-xl">
-                  {issue.description}
-                </p>
-              </div>
-
-              {/* Photo Media */}
-              {issue.mediaUrls && issue.mediaUrls.length > 0 && (
-                <div className="space-y-2.5 mb-6">
-                  <h3 className="font-label-bold text-on-surface-variant uppercase tracking-wider">Evidence Image</h3>
-                  <div className="max-h-80 overflow-hidden rounded-xl border border-outline-variant">
-                    <img
-                      src={issue.mediaUrls[0]}
-                      alt="Incident Evidence"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Location mapping metadata */}
-              <div className="space-y-2.5 mb-6">
-                <h3 className="font-label-bold text-on-surface-variant uppercase tracking-wider">Spatial Metadata</h3>
-                <div className="bg-surface-container-low border border-outline-variant rounded-xl p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <MapPin className="h-5 w-5 text-primary shrink-0" />
-                    <div className="text-left min-w-0">
-                      <p className="font-label-bold text-on-surface truncate">{issue.location}</p>
-                      <p className="font-body-sm text-on-surface-variant">Ward coverage: {issue.ward}</p>
-                    </div>
-                  </div>
-                  <span className="font-label-md text-on-surface-variant shrink-0">
-                    GPS: [{issue.latitude.toFixed(4)}, {issue.longitude.toFixed(4)}]
-                  </span>
-                </div>
-              </div>
-
-              {/* Administrative Resolution Controls */}
-              {canResolve && issue.status !== "RESOLVED" && (
-                <div className="mt-8 pt-6 border-t border-outline-variant flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="text-left">
-                    <p className="font-label-bold text-on-surface">Close Ticket Resolution Loop</p>
-                    <p className="font-body-sm text-on-surface-variant mt-0.5">As a registered validator or reporter, you can mark the issue resolved once fixed.</p>
-                  </div>
-                  <button
-                    onClick={handleResolveIssue}
-                    className="bg-primary text-on-primary font-label-bold py-2.5 px-4 rounded-lg flex items-center gap-2 transition-all shadow-sm shrink-0 border border-transparent hover:bg-primary-container hover:text-on-primary-container"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Resolve Issue Ticket
-                  </button>
-                </div>
-              )}
+              <p className="font-mono text-[10px] text-ink-muted uppercase mb-2 font-bold">Current Status</p>
+              <StatusStamp status={issue.status} className="scale-125" />
             </div>
+
+            <div className="bg-paper-raised border border-rule rounded-md p-4 flex flex-col justify-between h-28 font-mono">
+              <div>
+                <p className="text-[10px] text-ink-muted uppercase font-bold">Geographic Index</p>
+                <p className="text-xs text-ink font-bold mt-1.5 truncate">{issue.location}</p>
+              </div>
+              <span className="text-[9px] text-ink-muted">
+                GPS COORD: [{issue.latitude.toFixed(4)}N, {issue.longitude.toFixed(4)}E]
+              </span>
+            </div>
+          </div>
+
+          {/* Formal Letter Draft Section */}
+          {complaint && (
+            <section className="bg-paper-raised border border-rule rounded-md p-6 md:p-8 relative shadow-sm text-left">
+              <div className="text-center mb-6">
+                <h3 className="font-display text-base uppercase tracking-widest text-ink font-bold">
+                  {department?.name || "DEPARTMENT OF CIVIC OPERATIONS"}
+                </h3>
+                <p className="font-mono text-[9px] text-ink-muted">OFFICIAL COMPLAINT REGISTRY</p>
+                <div className="w-16 h-px bg-rule mx-auto mt-2"></div>
+              </div>
+              <div className="space-y-4 font-display text-sm text-ink leading-relaxed italic pr-2">
+                {complaint.generatedComplaint}
+              </div>
+              <div className="mt-8 pt-4 border-t border-dashed border-rule flex justify-between items-end">
+                <div className="space-y-0.5">
+                  <p className="font-display text-xs italic font-bold">Routing Agent Elias</p>
+                  <p className="font-mono text-[9px] text-ink-muted uppercase">SYSTEM IDENTIFIER: ROUT-1.0</p>
+                </div>
+                <div className="text-right">
+                  <div className="stamp-oval font-mono text-[9px] text-secondary border-secondary rotate-3 bg-paper font-bold px-2 py-0.5">
+                    {new Date(complaint.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Incident details metadata */}
+          <div className="bg-paper-raised border border-rule rounded-md p-6">
+            {/* Citizen info */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-muted border-b border-dashed border-rule pb-4 mb-5 font-mono">
+              <span className="flex items-center gap-1.5">
+                <User className="h-4 w-4 text-ink-muted/50" />
+                FILED BY: <span className="font-bold text-ink">{issue.createdByName || "CITIZEN"}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-4 w-4 text-ink-muted/50" />
+                DATE LOGGED: <span className="font-bold text-ink">{new Date(issue.createdAt).toLocaleString()}</span>
+              </span>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2 mb-6">
+              <h3 className="font-mono text-[10px] text-ink-muted uppercase tracking-wider font-bold">Incident Log Description</h3>
+              <p className="font-ui text-sm text-ink leading-relaxed bg-paper border border-rule p-4 rounded">
+                {issue.description}
+              </p>
+            </div>
+
+            {/* Evidence Image */}
+            {issue.mediaUrls && issue.mediaUrls.length > 0 && (
+              <div className="space-y-2 mb-6">
+                <h3 className="font-mono text-[10px] text-ink-muted uppercase tracking-wider font-bold">Evidence Photograph</h3>
+                <div className="max-h-80 overflow-hidden rounded border border-rule bg-paper">
+                  <img
+                    src={issue.mediaUrls[0]}
+                    alt="Evidence Registry"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Administrative Resolution Controls */}
+            {canResolve && issue.status !== "RESOLVED" && (
+              <div className="mt-8 pt-6 border-t border-rule flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="text-left font-ui">
+                  <p className="text-xs font-bold text-ink uppercase tracking-wide">Close Ticket Resolution Loop</p>
+                  <p className="text-[11px] text-ink-muted mt-0.5">As a registered validator or reporter, you can mark the issue resolved once fixed.</p>
+                </div>
+                <button
+                  onClick={handleResolveIssue}
+                  className="bg-primary text-paper hover:bg-primary/95 text-xs font-mono uppercase tracking-wide py-2.5 px-4 rounded border border-primary transition-all shrink-0 flex items-center gap-2 group"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Resolve Case file
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Assigned Department */}
           {department && (
-            <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 md:p-8 text-left shadow-sm">
-              <h3 className="font-label-bold text-on-surface-variant uppercase tracking-wider mb-4">Assigned Department Contact</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-paper-raised border border-rule rounded-md p-6 text-left">
+              <h3 className="font-mono text-xs font-bold text-ink uppercase tracking-wider mb-4 border-b border-rule pb-2">
+                ASSIGNED DEPARTMENT CONTACT
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-[11px]">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-primary-container/20 text-primary rounded-lg border border-primary/20">
+                  <div className="p-2 bg-seal-tint text-seal rounded border border-seal/20">
                     <Wrench className="h-4 w-4" />
                   </div>
                   <div>
-                    <h4 className="font-label-bold text-on-surface">Responsible Board</h4>
-                    <p className="font-body-sm text-on-surface-variant mt-0.5">{department.name}</p>
+                    <h4 className="font-bold text-ink">RESPONSIBLE BOARD</h4>
+                    <p className="text-ink-muted mt-0.5 font-ui text-[12px]">{department.name}</p>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 font-body-sm text-on-surface font-medium">
-                    <Mail className="h-4 w-4 text-on-surface-variant" />
+                <div className="space-y-1.5 justify-self-start md:justify-self-end text-left md:text-right">
+                  <div className="flex items-center gap-2 font-medium justify-start md:justify-end">
+                    <Mail className="h-3.5 w-3.5 text-ink-muted" />
                     <span>{department.email}</span>
                   </div>
-                  <div className="flex items-center gap-2 font-body-sm text-on-surface font-medium">
-                    <Phone className="h-4 w-4 text-on-surface-variant" />
+                  <div className="flex items-center gap-2 font-medium justify-start md:justify-end">
+                    <Phone className="h-3.5 w-3.5 text-ink-muted" />
                     <span>{department.contactNumber}</span>
                   </div>
                 </div>
@@ -236,10 +273,10 @@ export const IssueDetails: React.FC = () => {
 
         {/* Life cycle timeline Column */}
         <div className="space-y-6 text-left">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 md:p-8 shadow-sm">
-            <h3 className="font-headline-md text-on-surface mb-6 flex items-center gap-2">
-              <Award className="h-5 w-5 text-primary" />
-              Agent Audit Timeline
+          <div className="bg-paper-raised border border-rule rounded-md p-6">
+            <h3 className="font-mono text-xs font-bold text-ink uppercase tracking-wider mb-6 flex items-center gap-2 border-b border-rule pb-2">
+              <Award className="h-4 w-4 text-seal" />
+              AGENT AUDIT LOG TRAIL
             </h3>
             <IssueTimeline issue={issue} />
           </div>
