@@ -1,9 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { dbService } from "../services/db";
 import { authService } from "../services/auth";
 import { Image as ImageIcon, Mic, Sparkles, Navigation, Send, CheckCircle2, X } from "lucide-react";
-import { API_URL } from "../services/config";
+import { API_URL, GOOGLE_MAPS_API_KEY } from "../services/config";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 type SpeechRecognitionConstructor = new () => {
   continuous: boolean;
@@ -67,6 +69,58 @@ export const ReportIssue: React.FC = () => {
   const [voiceNoteUrl, setVoiceNoteUrl] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markerRef = useRef<mapboxgl.Marker | null>(null);
+
+  // Initialize Mapbox map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    mapboxgl.accessToken = GOOGLE_MAPS_API_KEY;
+
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: [longitude, latitude],
+      zoom: 13,
+    });
+
+    mapRef.current = map;
+
+    const marker = new mapboxgl.Marker({ draggable: true })
+      .setLngLat([longitude, latitude])
+      .addTo(map);
+
+    markerRef.current = marker;
+
+    marker.on("dragend", () => {
+      const lngLat = marker.getLngLat();
+      setLatitude(Number(lngLat.lat.toFixed(6)));
+      setLongitude(Number(lngLat.lng.toFixed(6)));
+    });
+
+    map.on("click", (e) => {
+      marker.setLngLat(e.lngLat);
+      setLatitude(Number(e.lngLat.lat.toFixed(6)));
+      setLongitude(Number(e.lngLat.lng.toFixed(6)));
+    });
+
+    return () => {
+      map.remove();
+    };
+  }, []);
+
+  // Sync marker position when lat/lng update externally
+  useEffect(() => {
+    const marker = markerRef.current;
+    const map = mapRef.current;
+    if (marker && map) {
+      marker.setLngLat([longitude, latitude]);
+      map.easeTo({ center: [longitude, latitude] });
+    }
+  }, [latitude, longitude]);
 
   // Audio recording states
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -423,14 +477,12 @@ export const ReportIssue: React.FC = () => {
             <h2 className="font-headline-md text-headline-md text-on-surface mb-2">Location & Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="border border-outline-variant rounded-lg overflow-hidden flex flex-col">
-                <div className="h-32 w-full relative map-bg">
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <Navigation className="text-primary drop-shadow-md h-8 w-8" />
-                  </div>
+                <div className="h-32 w-full relative overflow-hidden">
+                  <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
                   <button 
                     type="button"
                     onClick={handleGPSAttach}
-                    className="absolute bottom-2 right-2 bg-surface-container-lowest border border-outline-variant rounded-md px-2 py-1.5 flex items-center gap-1.5 shadow-sm hover:bg-surface-container-low transition-colors"
+                    className="absolute bottom-2 right-2 bg-surface-container-lowest border border-outline-variant rounded-md px-2 py-1.5 flex items-center gap-1.5 shadow-sm hover:bg-surface-container-low transition-colors z-10"
                   >
                     <Navigation className="h-3.5 w-3.5 text-primary" />
                     <span className="font-label-md text-label-md">Auto GPS</span>

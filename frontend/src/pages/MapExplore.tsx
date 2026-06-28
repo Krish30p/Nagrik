@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { dbService, subscribeToCollection } from "../services/db";
 import { Issue, Severity } from "../types";
 import { MapPin, Filter, Layers, Sparkles, Navigation } from "lucide-react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import { GOOGLE_MAPS_API_KEY } from "../services/config";
 
 export const MapExplore: React.FC = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -12,6 +15,10 @@ export const MapExplore: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [filterWard, setFilterWard] = useState<string>("ALL");
   const [showHeatmap, setShowHeatmap] = useState(false);
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
 
   const loadData = async () => {
     const data = await dbService.getIssues();
@@ -24,22 +31,6 @@ export const MapExplore: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Boundaries for coordinates mapping
-  const minLat = 28.55;
-  const maxLat = 28.65;
-  const minLng = 77.15;
-  const maxLng = 77.25;
-
-  const mapX = (lng: number) => {
-    const clamped = Math.max(minLng, Math.min(maxLng, lng));
-    return 40 + ((clamped - minLng) / (maxLng - minLng)) * 520;
-  };
-
-  const mapY = (lat: number) => {
-    const clamped = Math.max(minLat, Math.min(maxLat, lat));
-    return 440 - ((clamped - minLat) / (maxLat - minLat)) * 400; // Inverted Y in SVG
-  };
-
   const filteredIssues = issues.filter((issue) => {
     if (filterSeverity !== "ALL" && issue.severity !== filterSeverity) return false;
     if (filterStatus !== "ALL" && issue.status !== filterStatus) return false;
@@ -47,6 +38,155 @@ export const MapExplore: React.FC = () => {
     if (filterWard !== "ALL" && !issue.ward.includes(filterWard)) return false;
     return true;
   });
+
+  // Initialize Mapbox
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    mapboxgl.accessToken = GOOGLE_MAPS_API_KEY;
+
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: [77.2090, 28.6139], // Delhi
+      zoom: 11,
+    });
+
+    mapRef.current = map;
+
+    return () => {
+      map.remove();
+    };
+  }, []);
+
+  // Update Markers
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Clear old markers
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    // Add new markers
+    filteredIssues.forEach((issue) => {
+      const el = document.createElement("div");
+      el.className = "custom-marker";
+      el.style.width = "14px";
+      el.style.height = "14px";
+      el.style.borderRadius = "50%";
+      el.style.backgroundColor = getSeverityColor(issue.severity);
+      el.style.border = "2px solid white";
+      el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
+      el.style.cursor = "pointer";
+      el.style.position = "relative";
+
+      if (issue.status === "ESCALATED") {
+        const pulse = document.createElement("div");
+        pulse.className = "absolute rounded-full animate-ping";
+        pulse.style.inset = "-6px";
+        pulse.style.backgroundColor = getSeverityColor(issue.severity);
+        pulse.style.opacity = "0.4";
+        el.appendChild(pulse);
+      }
+
+      el.addEventListener("click", () => {
+        setSelectedIssue(issue);
+        map.easeTo({
+          center: [issue.longitude, issue.latitude],
+          zoom: 13,
+        });
+      });
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([issue.longitude, issue.latitude])
+        .addTo(map);
+
+      markersRef.current.push(marker);
+    });
+  }, [filteredIssues]);
+
+  // Update Heatmap
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const onStyleLoad = () => {
+      updateHeatmapLayer(map);
+    };
+
+    if (map.isStyleLoaded()) {
+      updateHeatmapLayer(map);
+    } else {
+      map.on('style.load', onStyleLoad);
+    }
+
+    return () => {
+      map.off('style.load', onStyleLoad);
+    };
+  }, [filteredIssues, showHeatmap]);
+
+  const updateHeatmapLayer = (map: mapboxgl.Map) => {
+    if (map.getLayer("issues-heat")) map.removeLayer("issues-heat");
+    if (map.getSource("issues-source")) map.removeSource("issues-source");
+
+    if (!showHeatmap) return;
+
+    const geojson: any = {
+      type: "FeatureCollection",
+      features: filteredIssues.map((issue) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [issue.longitude, issue.latitude],
+        },
+        properties: {
+          intensity: issue.severity === "CRITICAL" ? 4 : issue.severity === "HIGH" ? 3 : issue.severity === "MEDIUM" ? 2 : 1,
+        },
+      })),
+    };
+
+    map.addSource("issues-source", {
+      type: "geojson",
+      data: geojson,
+    });
+
+    map.addLayer({
+      id: "issues-heat",
+      type: "heatmap",
+      source: "issues-source",
+      maxzoom: 15,
+      paint: {
+        "heatmap-weight": ["get", "intensity"],
+        "heatmap-intensity": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          0, 1,
+          15, 3
+        ],
+        "heatmap-color": [
+          "interpolate",
+          ["linear"],
+          ["heatmap-value"],
+          0, "rgba(33,102,172,0)",
+          0.2, "rgba(103,169,207,0.5)",
+          0.4, "rgba(209,229,240,0.6)",
+          0.6, "rgba(253,219,199,0.7)",
+          0.8, "rgba(239,138,98,0.8)",
+          1, "rgba(178,24,43,0.9)"
+        ],
+        "heatmap-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          0, 5,
+          15, 30
+        ],
+        "heatmap-opacity": 0.6,
+      },
+    });
+  };
 
   const getSeverityColor = (severity: Severity) => {
     if (severity === "LOW") return "#1a7a52"; // primary-container
@@ -169,106 +309,9 @@ export const MapExplore: React.FC = () => {
           </span>
         </div>
 
-        {/* Interactive SVG Map */}
-        <div className="flex-1 relative map-bg select-none overflow-hidden flex items-center justify-center">
-          <svg
-            viewBox="0 0 600 480"
-            className="w-full h-full max-w-[650px] max-h-[500px]"
-          >
-            {/* Map Grid Gridlines */}
-            <defs>
-              <pattern id="mapGrid" width="30" height="30" patternUnits="userSpaceOnUse">
-                <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#E2E8F0" strokeWidth="0.5" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#mapGrid)" />
-
-            {/* Ward Boundaries */}
-            {/* Ward 1 Central */}
-            <path d="M 40 40 L 300 40 L 300 240 L 40 240 Z" fill="#F0FDFA" stroke="#99F6E4" strokeWidth="1.5" strokeDasharray="4 4" />
-            <text x="50" y="60" fill="#0D9488" fontSize="10" fontWeight="bold">Ward 1 (Central)</text>
-
-            {/* Ward 2 West */}
-            <path d="M 300 40 L 560 40 L 560 240 L 300 240 Z" fill="#EFF6FF" stroke="#BFDBFE" strokeWidth="1.5" strokeDasharray="4 4" />
-            <text x="310" y="60" fill="#1D4ED8" fontSize="10" fontWeight="bold">Ward 2 (West)</text>
-
-            {/* Ward 3 East */}
-            <path d="M 40 240 L 300 240 L 300 440 L 40 440 Z" fill="#FEF3C7" stroke="#FDE68A" strokeWidth="1.5" strokeDasharray="4 4" />
-            <text x="50" y="260" fill="#B45309" fontSize="10" fontWeight="bold">Ward 3 (East)</text>
-
-            {/* Ward 4 South */}
-            <path d="M 300 240 L 560 240 L 560 440 L 300 440 Z" fill="#FAF5FF" stroke="#E9D5FF" strokeWidth="1.5" strokeDasharray="4 4" />
-            <text x="310" y="260" fill="#6B21A8" fontSize="10" fontWeight="bold">Ward 4 (South)</text>
-
-            {/* Heatmap overlay (renders semi-transparent circles around coordinates) */}
-            {showHeatmap &&
-              filteredIssues.map((issue) => {
-                const cx = mapX(issue.longitude);
-                const cy = mapY(issue.latitude);
-                let heatColor = "rgba(239, 68, 68, 0.25)"; // Critical Red
-                let heatRadius = 40;
-                if (issue.severity === "LOW") {
-                  heatColor = "rgba(16, 185, 129, 0.25)"; // Green
-                  heatRadius = 20;
-                } else if (issue.severity === "MEDIUM") {
-                  heatColor = "rgba(59, 130, 246, 0.25)"; // Blue
-                  heatRadius = 25;
-                } else if (issue.severity === "HIGH") {
-                  heatColor = "rgba(245, 158, 11, 0.25)"; // Amber
-                  heatRadius = 35;
-                }
-
-                return (
-                  <circle
-                    key={`heat-${issue.id}`}
-                    cx={cx}
-                    cy={cy}
-                    r={heatRadius}
-                    fill={heatColor}
-                    className="transition-all duration-500"
-                  />
-                );
-              })}
-
-            {/* Issue Pin Markers */}
-            {filteredIssues.map((issue) => {
-              const cx = mapX(issue.longitude);
-              const cy = mapY(issue.latitude);
-              const color = getSeverityColor(issue.severity);
-              const isSelected = selectedIssue?.id === issue.id;
-
-              return (
-                <g
-                  key={issue.id}
-                  className="cursor-pointer"
-                  onClick={() => setSelectedIssue(issue)}
-                >
-                  {/* Pulse for escalated issues */}
-                  {issue.status === "ESCALATED" && (
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r="16"
-                      fill={color}
-                      opacity="0.15"
-                      className="animate-ping"
-                    />
-                  )}
-
-                  {/* Marker Pin */}
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={isSelected ? "8" : "5"}
-                    fill={color}
-                    stroke="#FFF"
-                    strokeWidth={isSelected ? "2.5" : "1.5"}
-                    className="transition-all duration-200 hover:scale-125"
-                  />
-                </g>
-              );
-            })}
-          </svg>
+        {/* Interactive Mapbox Map */}
+        <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+          <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
           {/* Issue Floating Mini-Card */}
           {selectedIssue && (
