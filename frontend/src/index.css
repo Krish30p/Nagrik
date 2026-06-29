@@ -118,3 +118,16 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
+
+/* Status Stamp Oval Styling - Double Border, Rotation, and Ink Stamp Metaphor */
+.stamp-oval {
+  display: inline-block;
+  border-width: 3px;
+  border-style: double;
+  border-radius: 9999px;
+  padding: 0.2rem 0.75rem;
+  transform: rotate(-2.5deg);
+  text-align: center;
+  box-shadow: inset 0 0 4px rgba(27, 27, 22, 0.05);
+}
+

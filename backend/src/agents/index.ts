@@ -1,42 +1,85 @@
 import { User, Report, Issue, Department, AgentLog, Config, SimulationState, Notification } from "../models";
 import mongoose from "mongoose";
 
-const getNvidiaApiKey = () => process.env.GEMINI_API_KEY || "";
+const getApiKey = () => process.env.GEMINI_API_KEY || "";
 
 let requestQueue: Promise<any> = Promise.resolve();
 
-async function callNvidiaNIM(promptText: string): Promise<string> {
-  if (!getNvidiaApiKey()) throw new Error("NVIDIA_API_KEY is not set.");
+async function callAgentLLM(promptText: string, jsonMode: boolean = false): Promise<string> {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API key is not set in environment (GEMINI_API_KEY).");
 
-  // Chain the request to the queue to ensure sequential execution and rate spacing
-  const result = requestQueue.then(async () => {
-    console.log("[Nvidia NIM Queue] Waiting 2 seconds to space out API requests...");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+  const isNvidia = apiKey.startsWith("nvapi-");
 
-    console.log("[Nvidia NIM Queue] Sending request to Nvidia API...");
-    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${getNvidiaApiKey()}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "meta/llama-3.1-70b-instruct",
-        messages: [{ role: "user", content: promptText }]
-      })
+  if (isNvidia) {
+    const result = requestQueue.then(async () => {
+      console.log("[Nvidia NIM Queue] Waiting 2 seconds to space out API requests...");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      console.log("[Nvidia NIM Queue] Sending request to Nvidia API...");
+      const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "meta/llama-3.1-70b-instruct",
+          messages: [{ role: "user", content: promptText }]
+        })
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Nvidia API error: ${response.status} ${errText}`);
+      }
+      const data = await response.json();
+      return data.choices[0].message.content;
     });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Nvidia API error: ${response.status} ${errText}`);
-    }
-    const data = await response.json();
-    return data.choices[0].message.content;
-  });
 
-  // Keep the queue moving even if this request fails
-  requestQueue = result.catch(() => {});
+    requestQueue = result.catch(() => {});
+    return result;
+  } else {
+    // Call Google Gemini API
+    const result = requestQueue.then(async () => {
+      console.log("[Gemini API Queue] Waiting 1 second to space out API requests...");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  return result;
+      console.log("[Gemini API] Sending request to Google Gemini API...");
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      
+      const requestBody: any = {
+        contents: [{ parts: [{ text: promptText }] }]
+      };
+      
+      if (jsonMode) {
+        requestBody.generationConfig = {
+          responseMimeType: "application/json"
+        };
+      }
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Gemini API error: ${response.status} ${errText}`);
+      }
+
+      const data = await response.json();
+      if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error("Invalid or empty response from Gemini API");
+      }
+      return data.candidates[0].content.parts[0].text;
+    });
+
+    requestQueue = result.catch(() => {});
+    return result;
+  }
 }
 
 function parseJson(text: string): any {
@@ -124,7 +167,7 @@ export const intakeAgent = {
     let success = false;
     let errorMessage: string | null = null;
 
-    if (getNvidiaApiKey()) {
+    if (getApiKey()) {
       try {
         const promptText = `
           You are a civic infrastructure inspector AI. You will be shown details of a 
@@ -155,7 +198,7 @@ export const intakeAgent = {
           - "description": string
         `;
 
-        const responseText = await callNvidiaNIM(promptText);
+        const responseText = await callAgentLLM(promptText, true);
         const parsed = parseJson(responseText);
 
         category = parsed.category;
@@ -164,11 +207,11 @@ export const intakeAgent = {
         description = parsed.description;
         success = true;
       } catch (err: any) {
-        errorMessage = err.message || "Gemini processing failed";
-        console.error("[Intake Agent] Gemini API error, applying fallbacks:", err);
+        errorMessage = err.message || "LLM processing failed";
+        console.error("[Intake Agent] LLM API error, applying fallbacks:", err);
       }
     } else {
-      errorMessage = "Gemini API key missing; applied rule-based heuristics.";
+      errorMessage = "API key missing; applied rule-based heuristics.";
     }
 
     if (!success) {
@@ -322,7 +365,7 @@ export const verificationAgent = {
       
       const hoursApart = Math.abs(issue.createdAt.getTime() - candidate.createdAt.getTime()) / (3600 * 1000);
 
-      if (getNvidiaApiKey()) {
+      if (getApiKey()) {
         try {
           const promptText = `
             You are comparing two citizen reports of civic infrastructure issues to 
@@ -343,7 +386,7 @@ export const verificationAgent = {
             - "reasoning": string
           `;
 
-          const responseText = await callNvidiaNIM(promptText);
+          const responseText = await callAgentLLM(promptText, true);
           const parsed = parseJson(responseText);
 
           if (parsed.isSameIssue && parsed.confidence >= 0.6) {
@@ -352,7 +395,7 @@ export const verificationAgent = {
             reasoning = parsed.reasoning;
           }
         } catch (err) {
-          console.error("[Verification Agent] Gemini match failed, applying distance fallback:", err);
+          console.error("[Verification Agent] LLM match failed, applying distance fallback:", err);
           // Fallback to pure distance
           if (distance <= config.mergeRadiusMeters) {
             matchedIssue = candidate;
@@ -481,7 +524,7 @@ export const routingAgent = {
     let success = false;
     let errorMessage: string | null = null;
 
-    if (getNvidiaApiKey() && department) {
+    if (getApiKey() && department) {
       try {
         const promptText = `
           You are drafting a formal civic complaint on behalf of citizens, to be sent to 
@@ -510,11 +553,11 @@ export const routingAgent = {
           Write the complete complaint document now. Do not wrap in quotes or codeblocks, just the plain text.
         `;
 
-        complaintText = await callNvidiaNIM(promptText);
+        complaintText = await callAgentLLM(promptText, false);
         success = true;
       } catch (err: any) {
-        errorMessage = err.message || "Gemini drafting failed";
-        console.error("[Routing Agent] Gemini complaint draft failed, applying fallback:", err);
+        errorMessage = err.message || "LLM drafting failed";
+        console.error("[Routing Agent] LLM complaint draft failed, applying fallback:", err);
       }
     } else {
       success = true; // Fallback counts as success to keep pipeline routed
@@ -592,7 +635,7 @@ export const escalationAgent = {
       let success = false;
       let errorMessage: string | null = null;
 
-      if (getNvidiaApiKey()) {
+      if (getApiKey()) {
         try {
           const promptText = `
             You are drafting a follow-up escalation notice on behalf of citizens, because 
@@ -621,11 +664,11 @@ export const escalationAgent = {
             Write the complete escalation notice now. Do not wrap in quotes or codeblocks, just the plain text.
           `;
 
-          noticeText = await callNvidiaNIM(promptText);
+          noticeText = await callAgentLLM(promptText, false);
           success = true;
         } catch (err: any) {
-          errorMessage = err.message || "Gemini notice draft failed";
-          console.error("[Escalation Agent] Gemini notice draft failed, using fallback:", err);
+          errorMessage = err.message || "LLM notice draft failed";
+          console.error("[Escalation Agent] LLM notice draft failed, using fallback:", err);
         }
       } else {
         success = true;

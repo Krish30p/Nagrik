@@ -989,6 +989,19 @@ mongoose
     server.listen(PORT, () => {
       console.log(`[Server] Express simulation server running on port ${PORT}`);
     });
+
+    // Start periodic background sweep for Escalation Agent (every 60 seconds)
+    console.log("[Escalation Agent] Initializing background SLA compliance sweep (60s interval)...");
+    setInterval(async () => {
+      try {
+        const escalatedCount = await escalationAgent.sweep();
+        if (escalatedCount > 0) {
+          console.log(`[Escalation Agent] Background sweep complete. Escalated ${escalatedCount} issues.`);
+        }
+      } catch (err) {
+        console.error("[Escalation Agent] Background sweep error:", err);
+      }
+    }, 60000); // 60 seconds
   })
   .catch((err) => {
     console.error("Database connection error:", err);
